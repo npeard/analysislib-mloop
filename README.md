@@ -44,7 +44,7 @@ Typically the directory structure of labscript will be something like
         ├── pythonlib/
         └── user_devices/
 ```
-where (`~` is `%USERPROFILE%` on Windows). A reasonable install will include a shared directory, in this case `common` in analysis lib to store resources needed for a range of analysis tasks.  
+where (`~` is `%USERPROFILE%` on Windows). A reasonable install will include a shared directory, in this case `common` in `analysislib` to store resources needed for a range of analysis tasks.  
 
 1. Clone this repository into such a shared directory that lyse scripts can access
 
