@@ -37,14 +37,31 @@ Typically the directory structure of labscript will be something like
         ├── analysislib/
         |   ├── common/
         |   |   ├── mloop/
-        |   ├── scripts...
+        |   ├── mloop_lyse.py
+        |   ├── mloop_config.toml
+        |   ├── other scripts...
         ├── labscriptlib/
         ├── pythonlib/
         └── user_devices/
 ```
-where (`~` is `%USERPROFILE%` on Windows).
+where (`~` is `%USERPROFILE%` on Windows). A reasonable install will include a shared directory, in this case `common` in analysis lib to store resources needed for a range of analysis tasks.  
 
-A reasonable install will include a shared directory, in this case `common` in analysis lib to store resources needed for a range of analysis tasks.  Clone this repository into such a shared directory that lyse scripts can access.
+1. Clone this repository into such a shared directory that lyse scripts can access
+
+2. Copy `mloop_lyse.py` out of the repository into your preferred storage location for lyse scripts.  In this way your changes to this file (which will be unique to your install) will not be tracked in the mloop git repository.  
+
+3. Edit `mloop_lyse.py`.  The structure of this file is pretty simple, as it just defines where the config file is located.  The key thing to get right is the import path for `mloop_multishot`, which must match the directory structure of your install.
+```python
+import lyse
+import os
+import analysislib.common.mloop.mloop_multishot as mloop_multishot
+
+if __name__ == '__main__':
+    # Location of config file with respect to this script
+    config_file = os.path.join(os.path.dirname(__file__), "mloop_config.toml")
+    mloop_multishot.run_singleshot_multishot(config_file)
+```
+4. Copy `mloop_config.toml` into the location you just specified in `mloop_lyse.py`.  This is not critical since it will be copied automatically if it doesn't exist.
 
 ## Usage
 
@@ -60,7 +77,7 @@ runmanager = localhost
 runmanager = 42523
 ```
 
-2. **Configure optimization settings in `mloop_config.toml`.** TOML is a high-level configuration file format and its description can be found [here](https://toml.io/). The repository contains a fully functional demo `mloop_config_example.toml` that optimizes the MOT and cMOT laser cooling stages at the _RbChip_ experiment at NIST Gaithersburg. At a bare minimum, you should modify the following:
+2. **Configure optimization settings.** This should be done in the TOML configuration file which was `mloop_config.toml` in the above example. TOML is a high-level configuration file format and its description can be found [here](https://toml.io/). The repository contains a fully functional demo `mloop_config_example.toml` that optimizes the MOT and cMOT laser cooling stages in the _RbChip_ experiment at NIST Gaithersburg. At a bare minimum, you should modify the following:
 
 ```toml
 [ANALYSIS]
@@ -108,7 +125,6 @@ args = ["y", "z"]
 This might be useful if you have organized your runmanager variables into more complicated data structures such as tuples, dictionaries, or whatever.
 
 3. **Load the analysis routine that computes the quantity you want to optimize into [lyse](https://github.com/labscript-suite/lyse).** This routine should update `cost_key` of the lyse dataframe by calling the `save_result` (or its variants) of a `lyse.Run`. For the above parameters, this would be `fake_result.py` containing:
-
 ```python
 import lyse
 
@@ -119,7 +135,7 @@ run = lyse.Run(lyse.path)
 run.save_result('y', your_result)
 ```
 
-4. **Load `mloop_multishot.py` as an analysis routine in lyse.** Ensure that it runs after the analysis routine that updates `cost_key`, e.g. `fake_result.py` in the above configuration, using the (move routine) up/down buttons.
+4. **Load `mloop_lyse.py` as an analysis routine in lyse.** Ensure that it runs after the analysis routine that updates `cost_key`, e.g. `fake_result.py` in the above configuration, using the (move routine) up/down buttons.
 
 5. **Begin automated optimization** by doing one of the following:
     * Press the 'Run multishot analysis' button in lyse.
@@ -128,9 +144,9 @@ run.save_result('y', your_result)
     * Press the 'Engage' button in runmanager.
     Either of these will begin an M-LOOP optimization, with a new sequence of shots being compiled and submitted to [blacs](https://github.com/labscript-suite/blacs) each time a cost value is computed.
 
-6. **Pause optimization** by pausing the lyse analysis queue or by unchecking (deactivating) the `mloop_multishot.py` in lyse.
+6. **Pause optimization** by pausing the lyse analysis queue or by unchecking (deactivating) the `mloop_lyse.py` in lyse.
 
-7. **Cancel or restart optimization** by removing `mloop_multishot.py` or by right-clicking on it and selecting 'restart worker process for selected routines'.
+7. **Cancel or restart optimization** by removing `mloop_lyse.py` or by right-clicking on it and selecting 'restart worker process for selected routines'.
 
 
 ### Uncertainties
@@ -192,14 +208,14 @@ There's an example of this in plot_mloop_results.py.
 M-LOOP itself has [visualisation functions](https://m-loop.readthedocs.io/en/latest/tutorials.html#visualizations) which can be run on the log/archive files it creates.
 
 
-### Can mloop_multishot.py be a single-shot routine?
+### Can mloop_lyse.py be a single-shot routine?
 
-The `mloop_multishot.py` script can be loaded as a single-shot analysis routine if `cost_key` derives from another single-shot routine, so long as it runs _after_ that routine.
+The `mloop_lyse.py` script can be loaded as a single-shot analysis routine if `cost_key` derives from another single-shot routine, so long as it runs _after_ that routine.
 
 
 ### Is this implementation limited to M-LOOP?
 
-Despite the name, `mloop_multishot.py` can be used for other automated optimization and feed-forward. You can run any function the optimization thread (see below), so long as it conforms to the following specification:
+Despite the name, `mloop_lyse.py` can be used for other automated optimization and feed-forward. You can run any function the optimization thread (see below), so long as it conforms to the following specification:
 
   * Calls `lyse.routine_storage.queue.get()` iteratively.
   * Uses the `cost_dict` returned to modify global variables (which ones and how is up to you) using `runmanager.remote.set_globals()`.
@@ -232,7 +248,7 @@ We use `lyse.routine_storage` to store:
   * a queue (`Queue.Queue`) for `mloop_multishot.py`/`mloop_interface.py` to put/get the latest M-LOOP cost dictionary, and
   * (when `mock = true`) a variable `x` for `mloop_interface.py`/`mloop_multishot.py` to set/get, for spoofing an `cost_key` that changes with the current value of the (first) M-LOOP optimization parameter.
 
-Each time the `mloop_multishot.py` routine runs in lyse, we first check to see if there is an active optimization by polling the optimization thread. If it doesn't exist or is not alive, we start a new thread. If there's an optimization underway, we retrieve the latest cost value from the lyse dataframe (see the `cost_analysis` function) and put it in the `lyse.routine_storage.queue`.
+Each time the `mloop_lyse.py` routine runs in lyse, we first check to see if there is an active optimization by polling the optimization thread. If it doesn't exist or is not alive, we start a new thread. If there's an optimization underway, we retrieve the latest cost value from the lyse dataframe (see the `cost_analysis` function) and put it in the `lyse.routine_storage.queue`.
 
 The `LoopInterface` subclass (of `mloop.interface.Interface`) has a method `get_next_cost_dict`, which:
 
