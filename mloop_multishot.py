@@ -3,6 +3,7 @@ import runmanager.remote as rm
 import labscript_utils.setup_logging
 
 import threading
+import queue
 import numpy as np
 import sys
 import logging
@@ -190,13 +191,9 @@ def run_singleshot_multishot(config_file):
 
     if not hasattr(lyse.routine_storage, 'queue'):
         logger.info('First execution of lyse routine...')
-        try:
-            from queue import Queue
-        except ImportError:
-            # PY2
-            from Queue import Queue
+
         logger.debug('Creating queue.')
-        lyse.routine_storage.queue = Queue()
+        lyse.routine_storage.queue = queue.Queue()
     if (
         hasattr(lyse.routine_storage, 'optimisation')
         and lyse.routine_storage.optimisation.is_alive()
