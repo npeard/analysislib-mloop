@@ -26,8 +26,24 @@
 
 The following assumes you have a working installation of the [_labscript suite_](https://docs.labscriptsuite.org/en/latest/installation) and [M-LOOP](https://m-loop.readthedocs.io/en/latest/install.html). Please see the installation documentation of these projects if you don't. 
 
-Clone this repository in your _labscript suite_ analysislib directory. By default, this is `~/labscript-suite/userlib/analysislib` (`~` is `%USERPROFILE%` on Windows).
+Typically the directory structure of labscript will be something like
+```
+    ~/labscript-suite/
+    ├── app_saved_configs/
+    │   ├── default_experiment/
+    ├── labconfig/
+    ├── logs/
+    └── userlib/
+        ├── analysislib/
+        |   ├── common/
+        |   ├── scripts...
+        ├── labscriptlib/
+        ├── pythonlib/
+        └── user_devices/
+```
+where (`~` is `%USERPROFILE%` on Windows).
 
+A reasonable install will include a shared directory, in this case `common` in analysis lib to store resources needed for a range of analysis tasks.  Clone this repository into such a shared directory that lyse scripts can access.
 
 ## Usage
 
@@ -61,8 +77,8 @@ start = -2
 
   * `cost_key`: Column of the lyse dataframe to derive the cost from, specified as a `[routine_name, result_name]` pair. The present cost comes from the most recent value in this column, i.e. `cost = df[cost_key].iloc[-1]`.
   * `maximize`: Whether or not to negate the above value, since M-LOOP will minimize the cost.
-  * `groups`: Which group(s) of parameters are active
-  * `MLOOP_PARAMS`: Dictionary of optimization parameters controlled by MLOOP, specified as a list of groups such as `["MOT", "CMOT"]`. This is to simplify the optimization of different groups of parameters.
+  * `groups`: Which group(s) of parameters are active, specified as a list of groups such as `["MOT", "CMOT"]`. This is to simplify the optimization of different groups of parameters.
+  * `MLOOP_PARAMS`: Dictionary of optimization parameters controlled by MLOOP.
     * `global_name` defines the global it maps to in runmanager.
     * `enable` allows parameters to be enabled or disabled on a case-by-case basis.  This may be omitted and defaults to `true`.
     * `min`, `max`, `start` correspond to `min_boundary`, `max_boundary`, and `first_params` lists to meet [M-LOOP specifications](https://m-loop.readthedocs.io/en/latest/tutorials.html#parameter-settings).
