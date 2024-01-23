@@ -1,4 +1,5 @@
 import lyse
+from . import mloop_config
 from runmanager.remote import set_globals, engage
 from mloop.interfaces import Interface
 from mloop.controllers import create_controller
@@ -25,9 +26,10 @@ def set_globals_mloop(mloop_session=None, mloop_iteration=None):
 
 
 class LoopInterface(Interface):
-    def __init__(self, config):
+    def __init__(self, config_file):
+        
         # Retrieve configuration from file or generate from defaults
-        self.config = config
+        self.config = mloop_config.get(config_file)
 
         # Pass config arguments to parent class's __init__() so that any
         # relevant specified options are applied appropriately.

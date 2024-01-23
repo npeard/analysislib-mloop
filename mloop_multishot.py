@@ -229,7 +229,7 @@ def run_singleshot_multishot(config_file):
         logger.debug('Starting interface thread...')
         lyse.routine_storage.optimisation = threading.Thread(
             target=mloop_interface.main,
-            args=(config,)
+            args=(config_file,)
         )
         lyse.routine_storage.optimisation.daemon = True
         lyse.routine_storage.optimisation.start()
