@@ -46,27 +46,31 @@ def prepare_globals(global_list, params_val_dict):
     return globals_to_set
 
 
-def get(config_path=None):
+def get(config_file="mloop_config.toml", config_path=None):
     """
     Setup the mloop interface using the file specified by config_path
     """
 
     # Default to local directory and default name
     if not config_path:
-        folder = os.path.dirname(__file__)
-        config_path = os.path.join(folder, "mloop_config.toml")
+        config_path = os.path.dirname(__file__)
 
-    # TODO: Check if file exists and copy a default into the specified location if it does not
-    # Also throw an exception since the default is unlikely to work for the user.
+    config_file = os.path.join(config_path, "mloop_config.toml")
 
-    if os.path.isfile(config_path):
-        with open(config_path, "rb") as f:
+    ext = os.path.splitext(config_file)[1].lower()
+    if ext != "toml":
+        msg = f"File extension of ext is not `toml'."
+        logger.debug(msg)
+        raise NameError(msg)
+
+    # Check if file exists and copy a default into the specified location if it does not
+    if os.path.isfile(config_file):
+        with open(config_file, "rb") as f:
             config = tomllib.load(f)
     else:
-        folder = os.path.dirname(__file__)
-        default_path = os.path.join(folder, "mloop_config_default.ini")
-        shutil.copy(default_path, config_path)
-
+        default_file = os.path.join(config_file, "mloop_config_default.toml")
+        shutil.copy(default_file, config_file)
+        logger.debug("Requested config file did not exist, createing default (this is unlikely to work so we will error out soon)")
 
     to_flatten = ["COMPILATION", "ANALYSIS", "MLOOP"]
     # iterate over configuration object and store pairs in parameter dictionary
