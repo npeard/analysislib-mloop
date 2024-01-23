@@ -1,6 +1,7 @@
 import os
 import json
 import configparser
+import shutil
 from collections import namedtuple
 
 import logging
@@ -58,10 +59,14 @@ def get(config_path=None):
     # TODO: Check if file exists and copy a default into the specified location if it does not
     # Also throw an exception since the default is unlikely to work for the user.
 
-    # if os.path.isfile(config_path): ... 
+    if os.path.isfile(config_path):
+        with open(config_path, "rb") as f:
+            config = tomllib.load(f)
+    else:
+        folder = os.path.dirname(__file__)
+        default_path = os.path.join(folder, "mloop_config_default.ini")
+        shutil.copy(default_path, config_path)
 
-    with open(config_path, "rb") as f:
-        config = tomllib.load(f)
 
     to_flatten = ["COMPILATION", "ANALYSIS", "MLOOP"]
     # iterate over configuration object and store pairs in parameter dictionary
