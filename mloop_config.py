@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import configparser
 import shutil
@@ -46,16 +47,10 @@ def prepare_globals(global_list, params_val_dict):
     return globals_to_set
 
 
-def get(config_file="mloop_config.toml", config_path=None):
+def get(config_file):
     """
-    Setup the mloop interface using the file specified by config_path
+    Setup the mloop interface using the file specified
     """
-
-    # Default to local directory and default name
-    if not config_path:
-        config_path = os.path.dirname(__file__)
-
-    config_file = os.path.join(config_path, "mloop_config.toml")
 
     ext = os.path.splitext(config_file)[1].lower()
     if ext != ".toml":
@@ -66,7 +61,8 @@ def get(config_file="mloop_config.toml", config_path=None):
     # Check if file exists and copy a default into the specified location if it does not
     if not os.path.isfile(config_file):
         logger.debug("Requested config file did not exist, creating default (this is unlikely to work so we will error out soon)")
-        default_file = os.path.join(config_path, "mloop_config_default.toml")
+        default_path = os.path.dirname(__file__) # path of current file        
+        default_file = os.path.join(default_path, "mloop_config_default.toml")
         shutil.copy(default_file, config_file)
 
     with open(config_file, "rb") as f:

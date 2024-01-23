@@ -1,11 +1,15 @@
 import lyse
 import runmanager.remote as rm
+import labscript_utils.setup_logging
+
+import threading
 import numpy as np
-import mloop_config
 import sys
 import logging
 import os
-from labscript_utils.setup_logging import LOG_PATH
+
+from . import mloop_config
+from . import mloop_interface
 
 try:
     from labscript_utils import check_version
@@ -20,7 +24,12 @@ check_version('zprocess', '2.13.1', '4.0')
 check_version('labscript_utils', '2.12.5', '4.0')
 
 
-def configure_logging(config, log_file=False):
+def configure_logging(config, log_file=True):
+    """
+    setup logging.  Right now there is a bug of some sorts in mloop that 
+    causes an error if log_file is set to false.  I think this is from it
+    having a bad default
+    """
     console_log_level = config['analysislib_console_log_level']
     file_log_level = config['analysislib_file_log_level']
     LOG_FILENAME = 'analysislib_mloop.log'
@@ -40,7 +49,7 @@ def configure_logging(config, log_file=False):
 
         # Set up file handler
         if log_file:
-            full_filename = os.path.join(LOG_PATH, LOG_FILENAME)
+            full_filename = os.path.join(labscript_utils.setup_logging.LOG_PATH, LOG_FILENAME)
             file_handler = logging.FileHandler(full_filename, mode='w')
             file_handler.setLevel(file_log_level)
             file_handler.setFormatter(formatter)
@@ -175,8 +184,8 @@ def cost_analysis(cost_key=(None,), maximize=True, x=None):
     return cost_dict
 
 
-def run_singleshot_multishot(config_file="mloop_config.toml", config_path=None):
-    config = mloop_config.get(config_file=config_file, config_path=config_path)
+def run_singleshot_multishot(config_file):
+    config = mloop_config.get(config_file)
     configure_logging(config)
 
     if not hasattr(lyse.routine_storage, 'queue'):
@@ -217,12 +226,10 @@ def run_singleshot_multishot(config_file="mloop_config.toml", config_path=None):
 
     elif check_runmanager(config):
         logger.info('(Re)starting optimisation process...')
-        import threading
-        import mloop_interface
-
         logger.debug('Starting interface thread...')
         lyse.routine_storage.optimisation = threading.Thread(
-            target=mloop_interface.main
+            target=mloop_interface.main,
+            args=(config,)
         )
         lyse.routine_storage.optimisation.daemon = True
         lyse.routine_storage.optimisation.start()

@@ -1,6 +1,5 @@
 import lyse
 from runmanager.remote import set_globals, engage
-import mloop_config
 from mloop.interfaces import Interface
 from mloop.controllers import create_controller
 import logging
@@ -26,9 +25,9 @@ def set_globals_mloop(mloop_session=None, mloop_iteration=None):
 
 
 class LoopInterface(Interface):
-    def __init__(self):
+    def __init__(self, config):
         # Retrieve configuration from file or generate from defaults
-        self.config = mloop_config.get()
+        self.config = config
 
         # Pass config arguments to parent class's __init__() so that any
         # relevant specified options are applied appropriately.
@@ -66,9 +65,9 @@ class LoopInterface(Interface):
         return cost_dict
 
 
-def main():
+def main(config):
     # Create M-LOOP optmiser interface with desired parameters
-    interface = LoopInterface()
+    interface = LoopInterface(config)
     # interface.daemon = True
 
     # Instantiate experiment controller
