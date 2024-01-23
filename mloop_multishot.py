@@ -12,18 +12,19 @@ try:
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
+import logging
+logger = logging.getLogger('analysislib_mloop')
+
 check_version('lyse', '2.5.0', '4.0')
 check_version('zprocess', '2.13.1', '4.0')
 check_version('labscript_utils', '2.12.5', '4.0')
 
 
-def configure_logging(config):
+def configure_logging(config, log_file=False):
     console_log_level = config['analysislib_console_log_level']
     file_log_level = config['analysislib_file_log_level']
     LOG_FILENAME = 'analysislib_mloop.log'
 
-    global logger
-    logger = logging.getLogger('analysislib_mloop')
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
         '%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s'
@@ -38,11 +39,12 @@ def configure_logging(config):
         logger.addHandler(console_handler)
 
         # Set up file handler
-        full_filename = os.path.join(LOG_PATH, LOG_FILENAME)
-        file_handler = logging.FileHandler(full_filename, mode='w')
-        file_handler.setLevel(file_log_level)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        if log_file:
+            full_filename = os.path.join(LOG_PATH, LOG_FILENAME)
+            file_handler = logging.FileHandler(full_filename, mode='w')
+            file_handler.setLevel(file_log_level)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
 
     logger.debug('Logger configured.')
 
@@ -173,8 +175,8 @@ def cost_analysis(cost_key=(None,), maximize=True, x=None):
     return cost_dict
 
 
-if __name__ == '__main__':
-    config = mloop_config.get()
+def run_singleshot_multishot(config_file="mloop_config.toml", config_path=None):
+    config = mloop_config.get(config_file=config_file, config_path=config_path)
     configure_logging(config)
 
     if not hasattr(lyse.routine_storage, 'queue'):

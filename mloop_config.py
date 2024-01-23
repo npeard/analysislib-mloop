@@ -58,19 +58,19 @@ def get(config_file="mloop_config.toml", config_path=None):
     config_file = os.path.join(config_path, "mloop_config.toml")
 
     ext = os.path.splitext(config_file)[1].lower()
-    if ext != "toml":
-        msg = f"File extension of ext is not `toml'."
+    if ext != ".toml":
+        msg = f"File extension of {ext} is not `.toml'."
         logger.debug(msg)
         raise NameError(msg)
 
     # Check if file exists and copy a default into the specified location if it does not
-    if os.path.isfile(config_file):
-        with open(config_file, "rb") as f:
-            config = tomllib.load(f)
-    else:
-        default_file = os.path.join(config_file, "mloop_config_default.toml")
+    if not os.path.isfile(config_file):
+        logger.debug("Requested config file did not exist, creating default (this is unlikely to work so we will error out soon)")
+        default_file = os.path.join(config_path, "mloop_config_default.toml")
         shutil.copy(default_file, config_file)
-        logger.debug("Requested config file did not exist, createing default (this is unlikely to work so we will error out soon)")
+
+    with open(config_file, "rb") as f:
+        config = tomllib.load(f)
 
     to_flatten = ["COMPILATION", "ANALYSIS", "MLOOP"]
     # iterate over configuration object and store pairs in parameter dictionary
