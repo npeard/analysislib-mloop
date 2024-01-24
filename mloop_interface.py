@@ -31,15 +31,65 @@ class LoopInterface(Interface):
         # Retrieve configuration from file or generate from defaults
         self.config = mloop_config.get(config_file)
 
+        # this will be the number of runs to pre-submit to blacs via runmanager.  
+        # The point of this is to keep the shot queue non-empty and avoid delays
+        self.num_buffered_runs = int(self.config.get("num_buffered_runs", 0))
+
         # Pass config arguments to parent class's __init__() so that any
         # relevant specified options are applied appropriately.
         super(LoopInterface, self).__init__(**self.config)
 
         self.num_in_costs = 0
 
+    def run(self):
+        '''
+        The run sequence for the interface.
+
+        Overloaded to enable pre-submission of shots
+        '''
+
+        self.log.debug('Entering main loop of interface.')
+        while not self.end_event.is_set():
+            # Wait for the next set of parameter values to test.
+            try:
+                params_dict = self.params_out_queue.get(
+                    True,
+                    self.interface_wait,
+                )
+            except mlu.empty_exception:
+                continue
+
+            # Try to run self.get_next_cost_dict(), passing any errors on to the
+            # controller. Note that the interface and controller run in separate
+            # threads which is why the error has to be passed through a queue
+            # rather than just raised here. If it were raised here, then the
+            # interface thread would crash and the controller thread would get
+            # stuck indefinitely waiting for results from the interface.
+
+            # only get the cost after the first self.num_buffered_runs
+            get_cost = (self.num_in_costs >= self.num_buffered_runs)
+            try:
+                cost_dict = self.get_next_cost_dict(params_dict, get_cost=get_cost)
+            except Exception as err:
+                # Send the error to the controller and set the end event to shut
+                # down the interface. Setting the end event here and now
+                # prevents the interface from running another iteration when
+                # there are more items in self.params_out_queue already.
+                self.interface_error_queue.put(err)
+                self.end_event.set()
+            else:
+                # Send the results back to the controller.
+                if get_cost:
+                    self.costs_in_queue.put(cost_dict)
+                else:
+                    self.log.debug('Shot submitted but cost not recorded.')
+
+                    
+        self.log.debug('Interface ended')
+
     # Method called by M-LOOP upon each new iteration to determine the cost
     # associated with a given point in the search space
-    def get_next_cost_dict(self, params_dict):
+    def get_next_cost_dict(self, params_dict, get_cost=True):
         self.num_in_costs += 1
         # Store current parameters to later verify reported cost corresponds to these
         # or so mloop_multishot.py can fake a cost if mock = True
@@ -49,7 +99,7 @@ class LoopInterface(Interface):
                 dict(zip(self.config['mloop_params'].keys(), params_dict['params']))
         )
 
-        lyse.routine_storage.params = globals_dict
+        lyse.routine_storage.params.put(globals_dict) 
 
         if not self.config['mock']:
             logger.info('Requesting next shot from experiment interface...')
@@ -61,9 +111,14 @@ class LoopInterface(Interface):
             engage()
 
         # Only proceed once per execution of the mloop_multishot.py routine
-        logger.info('Waiting for next cost from lyse queue...')
-        cost_dict = lyse.routine_storage.queue.get()
-        logger.debug('Got cost_dict from lyse queue: {cost}'.format(cost=cost_dict))
+        if get_cost:
+            logger.info('Waiting for next cost from lyse queue...')
+            cost_dict = lyse.routine_storage.queue.get()
+            logger.debug('Got cost_dict from lyse queue: {cost}'.format(cost=cost_dict))
+        else:
+            logger.info('Not waiting for lyse queue...')
+            cost_dict = {}
+
         return cost_dict
 
 

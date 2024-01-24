@@ -95,23 +95,15 @@ def check_runmanager(config):
         return True
 
 
-def verify_globals(config):
+def verify_globals(config, requested_globals):
     logger.debug('Verifying globals...')
-
-    # Get the current runmanager globals
-    logger.debug('Getting values of globals from runmanager.')
-    rm_globals = rm.get_globals()
-    current_values = [rm_globals[g.name] for g in config['runmanager_globals']]
 
     # Retrieve the parameter values requested by M-LOOP on this iteration
     logger.debug('Getting requested globals values from lyse.routine_storage.')
-    requested_dict = lyse.routine_storage.params
-    print('requested_dict', requested_dict)
+    print('requested_globals', requested_globals)
 
-    requested_values = [requested_dict[g.name] for g in config['runmanager_globals']]
-
+    requested_values = [requested_globals[g.name] for g in config['runmanager_globals']]
     print('requested_values', requested_values)
-    print('current_values', current_values)
 
     # Get the parameter values for the shot we just computed the cost for
     logger.debug('Getting lyse dataframe.')
@@ -119,20 +111,14 @@ def verify_globals(config):
     shot_values = [df[g.name].iloc[-1] for g in config['runmanager_globals']]
 
     # Verify integrity by cross-checking against what was requested
-    if not np.array_equal(current_values, requested_values):
-        message = (
-            'Cost requested for values different to those in runmanager.\n'
-            'Please add an executed shot to lyse with: {requested_dict}'
-        ).format(requested_dict=requested_dict)
-        logger.error(message)
-        return False
     if not np.array_equal(shot_values, requested_values):
         message = (
-            'Cost requested for different values to those used to compute cost.\n'
-            'Please add an executed shot to lyse with: {requested_dict}'
-        ).format(requested_dict=requested_dict)
+            'Cost requested for different globals than mloop is expecting.\n'
+            'Please add an executed shot to lyse with: {requested_globals}'
+        ).format(requested_globals=requested_globals)
         logger.error(message)
         return False
+    
     logger.debug('Globals verified.')
     return True
 
@@ -192,23 +178,29 @@ def run_singleshot_multishot(config_file):
     if not hasattr(lyse.routine_storage, 'queue'):
         logger.info('First execution of lyse routine...')
 
-        logger.debug('Creating queue.')
+        logger.debug('Creating queues.')
         lyse.routine_storage.queue = queue.Queue()
+
+        lyse.routine_storage.params = queue.Queue()
     if (
         hasattr(lyse.routine_storage, 'optimisation')
         and lyse.routine_storage.optimisation.is_alive()
     ):
+        # get next element in the params queue without removing it
+        requested_globals = lyse.routine_storage.params[0]
+
         cost_dict = cost_analysis(
             cost_key=config['cost_key'] if not config['mock'] else [],
             maximize=config['maximize'],
-            x=lyse.routine_storage.params.values()[0] if config['mock'] else None,
+            x=requested_globals.values()[0] if config['mock'] else None,
         )
 
         if not cost_dict['bad'] or not config['ignore_bad']:
             if check_runmanager(config):
-                if verify_globals(config):
-                    logger.debug('Putting cost in queue.')
+                if verify_globals(config, requested_globals):
+                    logger.debug('Putting cost in the cost queue and removing current params from the params queue.')
                     lyse.routine_storage.queue.put(cost_dict)
+                    lyse.routine_storage.params.get()
                 else:
                     message = 'NOT putting cost in queue because verify_globals failed.'
                     logger.debug(message)

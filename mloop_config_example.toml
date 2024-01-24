@@ -9,6 +9,7 @@ analysislib_console_log_level = 20
 analysislib_file_log_level = 10
 
 [MLOOP]
+num_buffered_runs = 3 # this is how many shots to try to keep in the runmanager queue
 num_training_runs = 5
 max_num_runs_without_better_params = 80
 max_num_runs = 400
