@@ -53,10 +53,12 @@ class LoopInterface(Interface):
         while not self.end_event.is_set():
             # Wait for the next set of parameter values to test.
             try:
+                print("Trying for params_dict")
                 params_dict = self.params_out_queue.get(
                     True,
                     self.interface_wait,
                 )
+                print("Got params_dict", params_dict)
             except mlu.empty_exception:
                 continue
 
@@ -70,7 +72,9 @@ class LoopInterface(Interface):
             # only get the cost after the first self.num_buffered_runs
             get_cost = (self.num_in_costs >= self.num_buffered_runs)
             try:
+                print("Trying for cost_dict")
                 cost_dict = self.get_next_cost_dict(params_dict, get_cost=get_cost)
+                print("Got cost_dict", params_dict)
             except Exception as err:
                 # Send the error to the controller and set the end event to shut
                 # down the interface. Setting the end event here and now
