@@ -44,6 +44,11 @@ class LoopController(GaussianProcessController):
     def __init__(self, interface, *args, **kwargs):
         
         super(LoopController, self).__init__(interface, *args, **kwargs)
+        formatter = logging.Formatter(
+            '%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s'
+        )
+        [h.setFormatter(formatter) for h in self.log.handlers]
+        self.log.info("Starting LoopController")
 
         self.num_buffered_runs = interface.num_buffered_runs
 
@@ -116,8 +121,9 @@ class LoopController(GaussianProcessController):
 
                     # IBS: check if we have enough buffered runs.  If not
                     # break out of this loop so we can request more.
-                    if len(self.last_out_params) < self.num_buffered_runs:
+                    if self.last_out_params.qsize() < self.num_buffered_runs:
                         self.cost_obtained = False
+                        self.log.debug("Looked for costs in queue, and am requesting another shot")
 
                         return
                 else:
@@ -169,6 +175,7 @@ class LoopController(GaussianProcessController):
             self.log.info('cost ' + str(self.curr_cost) + ' +/- ' + str(self.curr_uncer))
 
         # IBS: composing base Controller class with MachineLearnerController manually
+        self.log.debug('sending data to learner')
         self.ml_learner_costs_queue.put((self.curr_params,
                                     self.curr_cost,
                                     self.curr_uncer,
@@ -197,8 +204,14 @@ class LoopInterface(Interface):
         # Pass config arguments to parent class's __init__() so that any
         # relevant specified options are applied appropriately.
         super(LoopInterface, self).__init__(**self.config)
+        formatter = logging.Formatter(
+            '%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s'
+        )
+        [h.setFormatter(formatter) for h in self.log.handlers] # doesn't work
 
         self.num_in_costs = 0
+
+
 
     def run(self):
         '''
