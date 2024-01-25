@@ -22,7 +22,7 @@ class LoopController(GaussianProcessController):
         super(LoopController, self).__init__(interface, *args, **kwargs)
         
         formatter = logging.Formatter('%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s')
-        for i in len(self.log.handlers):
+        for i in range(len(self.log.handlers)):
             self.log.handlers[i].setFormatter(formatter)
 
         self.log.info("Starting LoopController")

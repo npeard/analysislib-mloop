@@ -1,8 +1,8 @@
 from mloop.learners import Learner
-import mloop.utilities as mlu
 import threading
 import logging
 import queue
+import numpy as np
 
 logger = logging.getLogger('analysislib_mloop')
 
@@ -26,7 +26,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
                  first_params=None,
                  **kwargs):
 
-        super(RandomLearner,self).__init__(**kwargs)
+        super(SimpleRandomLearner,self).__init__(**kwargs)
 
         if ((np.all(np.isfinite(self.min_boundary))&np.all(np.isfinite(self.max_boundary)))==False):
             msg = 'Minimum and/or maximum boundaries are NaN or inf. Must both be finite for random learner. Min boundary:' + repr(self.min_boundary) +'. Max boundary:' + repr(self.max_boundary)
@@ -80,6 +80,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
                 next_params =  self.min_boundary + nr.rand(self.num_params) * self.diff_boundary
 
             # Wait until the queue is empty and send a new element promptly.
+            self.log.debug('Waiting for params_out_queue to be empty')
             self.params_out_queue.join()
             self.params_out_queue.put(next_params)
 

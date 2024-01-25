@@ -40,7 +40,7 @@ class LoopInterface(Interface):
         super(LoopInterface, self).__init__(**self.config)
 
         formatter = logging.Formatter('%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s')
-        for i in len(self.log.handlers):
+        for i in range(len(self.log.handlers)):
             self.log.handlers[i].setFormatter(formatter)
 
         self.num_in_costs = 0
