@@ -76,6 +76,7 @@ class LoopController(GaussianProcessController):
         controller here so that the error can be re-raised in the controller's
         thread (note that the interface runs in a separate thread).
         '''
+        self.cost_obtained = False
         while True:
             try:
                 in_dict = self.costs_in_queue.get(True, self.controller_wait)
@@ -90,8 +91,7 @@ class LoopController(GaussianProcessController):
                     # IBS: check if we have enough buffered runs.  If not
                     # break out of this loop so we can request more.
                     if self.last_out_params.qsize() < self.num_buffered_runs:
-                        self.cost_obtained = False
-                        self.log.debug("Looked for costs in queue, and am requesting another shot")
+                        self.log.debug("Found no costs in queue, and am also requesting another shot")
 
                         return
                 else:
@@ -108,43 +108,46 @@ class LoopController(GaussianProcessController):
 
                 break
 
-        self.num_in_costs += 1
-        self.num_last_best_cost += 1
+        # The only way to get here should be to have self.cost_obtained = True, but check anyway
+        if self.cost_obtained:
+            self.num_in_costs += 1
+            self.num_last_best_cost += 1
 
-        if not ('cost' in in_dict) and (not ('bad' in in_dict) or not in_dict['bad']):
-            self.log.error('You must provide at least the key cost or the key bad with True.')
-            raise ValueError
-        try:
-            self.curr_cost = float(in_dict.pop('cost',float('nan')))
-            self.curr_uncer = float(in_dict.pop('uncer',0))
-            self.curr_bad = bool(in_dict.pop('bad',False))
-            self.curr_extras = in_dict
-        except ValueError:
-            self.log.error('One of the values you provided in the cost dict could not be converted into the right type.')
-            raise
-        if self.curr_bad and ('cost' in in_dict):
-            self.log.warning('The cost provided with the bad run will be saved, but not used by the learners.')
+            if not ('cost' in in_dict) and (not ('bad' in in_dict) or not in_dict['bad']):
+                self.log.error('You must provide at least the key cost or the key bad with True.')
+                raise ValueError
+            try:
+                self.curr_cost = float(in_dict.pop('cost',float('nan')))
+                self.curr_uncer = float(in_dict.pop('uncer',0))
+                self.curr_bad = bool(in_dict.pop('bad',False))
+                self.curr_extras = in_dict
+            except ValueError:
+                self.log.error('One of the values you provided in the cost dict could not be converted into the right type.')
+                raise
+            if self.curr_bad and ('cost' in in_dict):
+                self.log.warning('The cost provided with the bad run will be saved, but not used by the learners.')
 
-        self.in_costs.append(self.curr_cost)
-        self.in_uncers.append(self.curr_uncer)
-        self.in_bads.append(self.curr_bad)
-        self.in_extras.append(self.curr_extras)
-        self.curr_params = self.last_out_params.get() # IBS: change to queue here
-        if self.curr_cost < self.best_cost: 
-            self.best_cost = self.curr_cost
-            self.best_uncer = self.curr_uncer
-            self.best_index =  self.num_in_costs - 1  # -1 for zero-indexing.
-            self.best_params = self.curr_params
-            self.best_in_extras = self.curr_extras
-            self.num_last_best_cost = 0
-        if self.curr_bad:
-            self.log.info('bad run')
+            self.in_costs.append(self.curr_cost)
+            self.in_uncers.append(self.curr_uncer)
+            self.in_bads.append(self.curr_bad)
+            self.in_extras.append(self.curr_extras)
+            self.curr_params = self.last_out_params.get() # IBS: change to queue here
+            if self.curr_cost < self.best_cost: 
+                self.best_cost = self.curr_cost
+                self.best_uncer = self.curr_uncer
+                self.best_index =  self.num_in_costs - 1  # -1 for zero-indexing.
+                self.best_params = self.curr_params
+                self.best_in_extras = self.curr_extras
+                self.num_last_best_cost = 0
+            if self.curr_bad:
+                self.log.info('bad run')
+            else:
+                self.log.info('cost ' + str(self.curr_cost) + ' +/- ' + str(self.curr_uncer))
+
+            # IBS: composing base Controller class with MachineLearnerController manually
+            self.log.debug('sending data to learner')
+            self.ml_learner_costs_queue.put(
+                (self.curr_params, self.curr_cost, self.curr_uncer, self.curr_bad)
+            )
         else:
-            self.log.info('cost ' + str(self.curr_cost) + ' +/- ' + str(self.curr_uncer))
-
-        # IBS: composing base Controller class with MachineLearnerController manually
-        self.log.debug('sending data to learner')
-        self.ml_learner_costs_queue.put((self.curr_params,
-                                    self.curr_cost,
-                                    self.curr_uncer,
-                                    self.curr_bad))
+            self.log.debug('in unreachable code')

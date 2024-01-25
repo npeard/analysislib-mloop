@@ -8,7 +8,6 @@ import mloop.utilities as mlu
 import logging
 import queue
 
-
 logger = logging.getLogger('analysislib_mloop')
 
 def set_globals_mloop(mloop_session=None, mloop_iteration=None):
@@ -33,8 +32,7 @@ class LoopInterface(Interface):
         # Retrieve configuration from file or generate from defaults
         self.config = mloop_config.get(config_file)
 
-        # this will be the number of runs to pre-submit to blacs via runmanager.  
-        # The point of this is to keep the shot queue non-empty and avoid delays
+        # the number of runs to pre-submit to blacs via runmanager.  
         self.num_buffered_runs = int(self.config.get("num_buffered_runs", 0))
 
         # Pass config arguments to parent class's __init__() so that any
@@ -60,12 +58,12 @@ class LoopInterface(Interface):
         while not self.end_event.is_set():
             # Wait for the next set of parameter values to test.
             try:
-                print("Trying for params_dict")
+                self.log.debug("Trying for params_dict")
                 params_dict = self.params_out_queue.get(
                     True,
                     self.interface_wait,
                 )
-                print("Got params_dict", params_dict)
+                self.log.debug("Got params_dict", params_dict)
             except mlu.empty_exception:
                 continue
 
@@ -79,9 +77,9 @@ class LoopInterface(Interface):
             # only get the cost after the first self.num_buffered_runs
             get_cost = (self.num_in_costs >= self.num_buffered_runs)
             try:
-                print("Trying for cost_dict")
+                self.log.debug("Trying for cost_dict")
                 cost_dict = self.get_next_cost_dict(params_dict, get_cost=get_cost)
-                print("Got cost_dict", params_dict)
+                self.log.debug("Got cost_dict", params_dict)
             except Exception as err:
                 # Send the error to the controller and set the end event to shut
                 # down the interface. Setting the end event here and now
@@ -97,7 +95,7 @@ class LoopInterface(Interface):
                     self.log.debug('Shot submitted but cost not recorded.')
 
                     
-        self.log.debug('Interface ended')
+        self.log.debug('Interface ended normally')
 
     # Method called by M-LOOP upon each new iteration to determine the cost
     # associated with a given point in the search space
