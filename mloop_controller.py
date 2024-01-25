@@ -10,6 +10,10 @@ class LoopController(GaussianProcessController):
     """
     def __init__(self, interface, *args, **kwargs):
         
+        if "training_type" in kwargs:
+            self.log.info(f"training_type was provided as '{kwargs['training_type']}', but note that only 'random' is supported")
+        
+        kwargs["training_type"] = "random"
         super(LoopController, self).__init__(interface, *args, **kwargs)
         
         formatter = logging.Formatter('%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s')
@@ -24,7 +28,7 @@ class LoopController(GaussianProcessController):
         self.last_out_params = queue.Queue()
         self.cost_obtained = False
 
-    def _put_params_and_out_dict(self, params, param_type=None, **kwargs):
+    def _put_params_and_out_dict(self, params, param_type=None, base_mode=False, **kwargs):
         '''
         Send parameters to queue with optional additional keyword arguments.
 
@@ -39,6 +43,7 @@ class LoopController(GaussianProcessController):
                 stored in `self.out_type` and in the `out_type` list in the
                 controller archive. If `None`, then it will be set to
                 `self.learner.OUT_TYPE`. Default `None`.
+            base_mode: (bool) execute code from the base Controller class only
         Keyword Args:
             **kwargs: Any additional keyword arguments will be stored in
                 `self.out_extras` and in the `out_extras` list in the controller
@@ -62,6 +67,10 @@ class LoopController(GaussianProcessController):
         self.out_extras.append(kwargs)
         self.out_type.append(param_type)
         self.log.info('params ' + str(params))
+
+        if not base_mode:
+            # IBS: composing base Controller class with MachineLearnerController manually
+            self.last_training_run_flag = True
 
     def _get_cost_and_in_dict(self):
         '''
@@ -151,3 +160,64 @@ class LoopController(GaussianProcessController):
             )
         else:
             self.log.debug('in unreachable code')
+
+    def _optimization_routine(self):
+        '''
+        Overrides _optimization_routine. Uses the parent routine for the training runs. Implements a customized _optimization_routine when running the machine learning learner.
+        '''
+        #Run the training runs using the standard optimization routine.
+        self.log.debug('Starting training optimization.')
+        self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
+        next_params = self._first_params()
+        self._put_params_and_out_dict(next_params, param_type=self.training_type)
+        self.save_archive()
+        self._get_cost_and_in_dict()
+
+        while (self.num_in_costs < self.num_training_runs) and self.check_end_conditions():
+            self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
+            next_params = self._next_params()
+            self._put_params_and_out_dict(next_params, param_type=self.training_type)
+            self.save_archive()
+            self._get_cost_and_in_dict()
+
+        if self.check_end_conditions():
+            #Start last training run
+            self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
+            next_params = self._next_params()
+            self._put_params_and_out_dict(next_params, param_type=self.training_type)
+
+            self.log.debug('Starting ML optimization.')
+            # This may be a race. Although the cost etc. is put in the queue to
+            # the learner before the new_params_event is set, it's not clear if
+            # python guarantees that the other process will see the item in the
+            # queue before the event is set. To work around this,
+            # learners.MachineLearner.get_params_and_costs() blocks with a
+            # timeout while waiting for an item in the queue.
+            self._get_cost_and_in_dict()
+            self.save_archive()
+            self.new_params_event.set()
+            self.log.debug('End training runs.')
+
+            ml_consec = 0
+            ml_count = 0
+
+        while self.check_end_conditions():
+            run_num = self.num_in_costs + 1
+            if ml_consec==self.generation_num or (self.no_delay and self.ml_learner_params_queue.empty()):
+                self.log.info('Run:' + str(run_num) + ' (trainer)')
+                next_params = self._next_params()
+                self._put_params_and_out_dict(next_params, param_type=self.training_type)
+                ml_consec = 0
+            else:
+                self.log.info('Run:' + str(run_num) + ' (machine learner)')
+                next_params = self.ml_learner_params_queue.get()
+                self._put_params_and_out_dict(next_params, param_type=self.machine_learner_type, base_mode=True)
+                ml_consec += 1
+                ml_count += 1
+
+            self.save_archive()
+            self._get_cost_and_in_dict()
+
+            if ml_count==self.generation_num:
+                self.new_params_event.set()
+                ml_count = 0
