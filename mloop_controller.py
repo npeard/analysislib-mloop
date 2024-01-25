@@ -1,7 +1,10 @@
 from mloop.controllers import GaussianProcessController
+from . import mloop_learner
 import mloop.utilities as mlu
 import logging
 import queue
+
+logger = logging.getLogger('analysislib_mloop')
 
 class LoopController(GaussianProcessController):
     """
@@ -11,9 +14,11 @@ class LoopController(GaussianProcessController):
     def __init__(self, interface, *args, **kwargs):
         
         if "training_type" in kwargs:
-            self.log.info(f"training_type was provided as '{kwargs['training_type']}', but note that only 'random' is supported")
+            self.log.info(f"training_type was provided as '{kwargs['training_type']}', but note that only 'simple random' is supported")
         
-        kwargs["training_type"] = "random"
+        kwargs["training_type"] = "simple random"
+        self.learner = mloop_learner.SimpleRandomLearner(**kwargs)
+
         super(LoopController, self).__init__(interface, *args, **kwargs)
         
         formatter = logging.Formatter('%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s')
