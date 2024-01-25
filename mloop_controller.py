@@ -14,16 +14,10 @@ class LoopController(GaussianProcessController):
     def __init__(self, interface, *args, **kwargs):
         
         if "training_type" in kwargs:
-            self.log.info(f"training_type was provided as '{kwargs['training_type']}', but note that only 'simple random' is supported")
-        
-        kwargs["training_type"] = "simple random"
-        self.learner = mloop_learner.SimpleRandomLearner(**kwargs)
+            self.log.info(f"training_type was provided as '{kwargs['training_type']}', but note that only 'random' is supported")
+        kwargs["training_type"] = "random"
 
         super(LoopController, self).__init__(interface, *args, **kwargs)
-        
-        formatter = logging.Formatter('%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s')
-        for i in range(len(self.log.handlers)):
-            self.log.handlers[i].setFormatter(formatter)
 
         self.log.info("Starting LoopController")
 

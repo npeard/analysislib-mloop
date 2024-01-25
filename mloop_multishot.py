@@ -1,5 +1,6 @@
 import lyse
 from . import monkey # monkey patch m-loop as needed
+
 import runmanager.remote as rm
 import labscript_utils.setup_logging
 
@@ -18,7 +19,6 @@ try:
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
-import logging
 logger = logging.getLogger('analysislib_mloop')
 
 check_version('lyse', '2.5.0', '4.0')
@@ -39,7 +39,7 @@ def configure_logging(config, log_file=True):
 
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
-        '%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s'
+        'INTERFACE %(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s'
     )
 
     # Set up handlers if not already present from previous runs.

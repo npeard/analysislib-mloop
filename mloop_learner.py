@@ -1,7 +1,10 @@
 from mloop.learners import Learner
+import mloop.utilities as mlu
+
 import threading
 import logging
 import queue
+import time
 import numpy as np
 
 logger = logging.getLogger('analysislib_mloop')
@@ -49,6 +52,9 @@ class SimpleRandomLearner(Learner, threading.Thread):
         self.best_cost = None
         self.best_parameters = None
 
+        if trust_region is not None:
+            trust_region = None
+            self.log.info("Trust region is ignored in Simple Random Learner")
         self._set_trust_region(trust_region)
 
         new_values_dict = {
@@ -58,7 +64,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
         }
         self.archive_dict.update(new_values_dict)
 
-        self.log.debug('Random learner init completed.')
+        self.log.debug('Simple random learner init completed.')
 
     def run(self):
         '''
@@ -66,27 +72,26 @@ class SimpleRandomLearner(Learner, threading.Thread):
         '''
         self.log.debug('Starting Simple Random Learner')
         if self.first_params is None:
-            next_params = self.min_boundary + nr.rand(self.num_params) * self.diff_boundary
+            next_params = mlu.rng.uniform(self.min_boundary, self.max_boundary)
         else:
             next_params = self.first_params
 
         while not self.end_event.is_set():
 
-            if self.has_trust_region:
-                temp_min = np.maximum(self.min_boundary, self.best_params - self.trust_region)
-                temp_max = np.minimum(self.max_boundary, self.best_params + self.trust_region)
-                next_params = temp_min + nr.rand(self.num_params) * (temp_max - temp_min)
-            else:
-                next_params =  self.min_boundary + nr.rand(self.num_params) * self.diff_boundary
+            next_params =  mlu.rng.uniform(self.min_boundary, self.max_boundary)
 
             # Wait until the queue is empty and send a new element promptly.
-            self.log.debug('Waiting for params_out_queue to be empty')
-            self.params_out_queue.join()
+            while not self.params_out_queue.empty():
+                time.sleep(self.learner_wait)
+
             self.params_out_queue.put(next_params)
 
             # Clear the costs in queue
-            with self.costs_in_queue.mutex:
-                self.costs_in_queue.clear()
+            try:
+                while True:
+                    self.costs_in_queue.get_nowait()
+            except queue.Empty:
+                pass
 
 
         self._shut_down()
