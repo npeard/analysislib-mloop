@@ -39,10 +39,6 @@ class LoopInterface(Interface):
         # relevant specified options are applied appropriately.
         super(LoopInterface, self).__init__(**self.config)
 
-        formatter = logging.Formatter('%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s')
-        for i in range(len(self.log.handlers)):
-            self.log.handlers[i].setFormatter(formatter)
-
         self.num_in_costs = 0
 
 
@@ -103,30 +99,29 @@ class LoopInterface(Interface):
         self.num_in_costs += 1
         # Store current parameters to later verify reported cost corresponds to these
         # or so mloop_multishot.py can fake a cost if mock = True
-        logger.debug('Storing requested parameters in lyse.routine_storage.')
         globals_dict = mloop_config.prepare_globals(
                 self.config['runmanager_globals'],
                 dict(zip(self.config['mloop_params'].keys(), params_dict['params']))
         )
 
+        self.log.debug(f'Storing requested parameters in lyse.routine_storage:  {globals_dict}')
         lyse.routine_storage.params.put(globals_dict) 
 
         if not self.config['mock']:
-            logger.info('Requesting next shot from experiment interface...')
-            logger.debug('Setting optimization parameter values.')
+            self.log.info('Requesting next shot from experiment interface...')
+            self.log.debug(f'Setting optimization parameter values: {globals_dict}')
             set_globals(globals_dict)
-            logger.debug('Setting mloop_iteration...')
             set_globals_mloop(mloop_iteration=self.num_in_costs)
-            logger.debug('Calling engage().')
+            self.log.debug('Calling engage().')
             engage()
 
         # Only proceed once per lyse call ONCE we have num_buffered_runs queued up.
         if get_cost:
-            logger.info('Waiting for next cost from lyse queue...')
+            self.log.info('Waiting for next cost from lyse queue...')
             cost_dict = lyse.routine_storage.queue.get()
-            logger.debug('Got cost_dict from lyse queue: {cost}'.format(cost=cost_dict))
+            self.log.debug('Got cost_dict from lyse queue: {cost}'.format(cost=cost_dict))
         else:
-            logger.info('Not waiting for lyse queue...')
+            self.log.info('Not waiting for lyse queue...')
             cost_dict = {}
 
         return cost_dict

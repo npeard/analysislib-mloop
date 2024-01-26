@@ -102,10 +102,8 @@ def verify_globals(config, requested_globals):
 
     # Retrieve the parameter values requested by M-LOOP on this iteration
     logger.debug('Getting requested globals values from lyse.routine_storage.')
-    print('requested_globals', requested_globals)
 
     requested_values = [requested_globals[g.name] for g in config['runmanager_globals']]
-    print('requested_values', requested_values)
 
     # Get the parameter values for the shot we just computed the cost for
     logger.debug('Getting lyse dataframe.')
@@ -114,11 +112,20 @@ def verify_globals(config, requested_globals):
 
     # Verify integrity by cross-checking against what was requested
     if not np.array_equal(shot_values, requested_values):
+        logger.error('Cost requested for different globals than mloop is expecting.\n')
+
+        if len(shot_values) != len(requested_values):
+            logger.debug("Lengths of arrays are different")
+        else:
+            for i, (s, r) in enumerate(zip(shot_values, requested_values)):
+                if s != r:
+                    logger.debug(f"Values in index {i} are not equal: {s} != {r}")
+            
         message = (
-            'Cost requested for different globals than mloop is expecting.\n'
             'Please add an executed shot to lyse with: {requested_globals}'
         ).format(requested_globals=requested_globals)
         logger.error(message)
+
         return False
     
     logger.debug('Globals verified.')
@@ -189,7 +196,7 @@ def run_singleshot_multishot(config_file):
         and lyse.routine_storage.optimisation.is_alive()
     ):
         # get next element in the params queue without removing it
-        requested_globals = lyse.routine_storage.params[0]
+        requested_globals = lyse.routine_storage.params.queue[0]
 
         cost_dict = cost_analysis(
             cost_key=config['cost_key'] if not config['mock'] else [],
@@ -226,7 +233,7 @@ def run_singleshot_multishot(config_file):
         lyse.routine_storage.optimisation.start()
         logger.debug('Interface thread started.')
     else:
-        print(
+        logger.error(
             '\nNot (re)starting optimisation process.',
             'Please address above warnings before trying again.',
         )

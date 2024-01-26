@@ -7,6 +7,7 @@ maximize = true
 ignore_bad = false
 analysislib_console_log_level = 20
 analysislib_file_log_level = 10
+groups = ["CMOT", "MOL", "MTRAP"]
 
 [MLOOP]
 num_buffered_runs = 3 # this is how many shots to try to keep in the runmanager queue
@@ -18,8 +19,7 @@ cost_has_noise = true
 no_delay = true # false
 visualisations = false
 controller_type = "gaussian_process"
-console_log_level = 0
-groups = ["CMOT", "MOL", "MTRAP"]
+console_log_level = 1
 
  ######  ##     ##  #######  ########
 ##    ## ###   ### ##     ##    ##
