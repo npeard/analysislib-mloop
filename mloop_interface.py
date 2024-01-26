@@ -61,7 +61,7 @@ class LoopInterface(Interface):
                 )
                 self.log.debug("Got params_dict", params_dict)
             except mlu.empty_exception:
-                continue
+                continue # DEBUG HERE.  THIS ENDS THE WHILE LOOP RATHER THAN CONTINUING!
 
             # Try to run self.get_next_cost_dict(), passing any errors on to the
             # controller. Note that the interface and controller run in separate
