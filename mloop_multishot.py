@@ -27,9 +27,7 @@ check_version('labscript_utils', '2.12.5', '4.0')
 
 def configure_logging(config, log_file=True):
     """
-    setup logging.  Right now there is a bug of some sorts in mloop that 
-    causes an error if log_file is set to false.  I think this is from it
-    having a bad default
+    setup logging.
     """
     console_log_level = config['analysislib_console_log_level']
     file_log_level = config['analysislib_file_log_level']
