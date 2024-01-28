@@ -1,7 +1,4 @@
 import os
-import sys
-import json
-import configparser
 import shutil
 from collections import namedtuple
 
