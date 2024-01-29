@@ -27,7 +27,7 @@ class LoopController(GaussianProcessController):
         self.last_out_params = queue.Queue()
         self.cost_obtained = False
 
-    def _put_params_and_out_dict(self, params, param_type=None, base_mode=False, **kwargs):
+    def _put_params_and_out_dict(self, params, param_type=None, **kwargs):
         '''
         Send parameters to queue with optional additional keyword arguments.
 
@@ -42,7 +42,6 @@ class LoopController(GaussianProcessController):
                 stored in `self.out_type` and in the `out_type` list in the
                 controller archive. If `None`, then it will be set to
                 `self.learner.OUT_TYPE`. Default `None`.
-            base_mode: (bool) execute code from the base Controller class only
         Keyword Args:
             **kwargs: Any additional keyword arguments will be stored in
                 `self.out_extras` and in the `out_extras` list in the controller
@@ -65,10 +64,6 @@ class LoopController(GaussianProcessController):
         self.out_params.append(params)
         self.out_extras.append(kwargs)
         self.out_type.append(param_type)
-
-        if not base_mode:
-            # IBS: composing base Controller class with MachineLearnerController manually
-            self.last_training_run_flag = True
 
     def _get_cost_and_in_dict(self):
         '''
@@ -152,7 +147,7 @@ class LoopController(GaussianProcessController):
                 self.log.info('cost ' + str(self.curr_cost) + ' +/- ' + str(self.curr_uncer))
 
             # IBS: composing base Controller class with MachineLearnerController manually
-            self.log.debug('sending data to learner')
+            self.log.debug('sending data to machine learner')
             self.ml_learner_costs_queue.put(
                 (self.curr_params, self.curr_cost, self.curr_uncer, self.curr_bad)
             )
@@ -167,14 +162,14 @@ class LoopController(GaussianProcessController):
         self.log.debug('Starting training optimization.')
         self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
         next_params = self._first_params()
-        self._put_params_and_out_dict(next_params, param_type=self.training_type)
+        self._put_params_and_out_dict(next_params,param_type=self.learner.OUT_TYPE)
         self.save_archive()
         self._get_cost_and_in_dict()
 
         while (self.num_in_costs < self.num_training_runs) and self.check_end_conditions():
             self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
             next_params = self._next_params()
-            self._put_params_and_out_dict(next_params, param_type=self.training_type)
+            self._put_params_and_out_dict(next_params, param_type=self.learner.OUT_TYPE)
             self.save_archive()
             self._get_cost_and_in_dict()
 
@@ -182,7 +177,7 @@ class LoopController(GaussianProcessController):
             #Start last training run
             self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
             next_params = self._next_params()
-            self._put_params_and_out_dict(next_params, param_type=self.training_type)
+            self._put_params_and_out_dict(next_params, param_type=self.learner.OUT_TYPE)
 
             self.log.debug('Starting ML optimization.')
             # This may be a race. Although the cost etc. is put in the queue to
@@ -204,12 +199,14 @@ class LoopController(GaussianProcessController):
             if ml_consec==self.generation_num or (self.no_delay and self.ml_learner_params_queue.empty()):
                 self.log.info('Run:' + str(run_num) + ' (trainer)')
                 next_params = self._next_params()
-                self._put_params_and_out_dict(next_params, param_type=self.training_type)
+                self._put_params_and_out_dict(next_params, param_type=self.learner.OUT_TYPE)
                 ml_consec = 0
             else:
                 self.log.info('Run:' + str(run_num) + ' (machine learner)')
                 next_params = self.ml_learner_params_queue.get()
-                self._put_params_and_out_dict(next_params, param_type=self.machine_learner_type, base_mode=True)
+                self.log.debug(f'Got next params (machine learner): {next_params}')
+                self._put_params_and_out_dict(next_params, param_type=self.machine_learner.OUT_TYPE)
+                self.log.debug(f'Put next params (machine learner)')
                 ml_consec += 1
                 ml_count += 1
 
@@ -217,5 +214,6 @@ class LoopController(GaussianProcessController):
             self._get_cost_and_in_dict()
 
             if ml_count==self.generation_num:
+                self.log.debug(f'Requeting new parameters (machine learner)')
                 self.new_params_event.set()
                 ml_count = 0
