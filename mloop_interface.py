@@ -7,6 +7,7 @@ from mloop.controllers import GaussianProcessController
 import mloop.utilities as mlu
 import logging
 import queue
+import time
 
 def set_globals_mloop(logger, mloop_session=None, mloop_iteration=None):
     """Set globals named 'mloop_session' and 'mloop_iteration'
@@ -91,6 +92,7 @@ class LoopInterface(Interface):
                 else:
                     self.log.debug('Shot submitted but cost not recorded.')
 
+
                     
         self.log.debug('Interface ended normally')
 
@@ -115,7 +117,6 @@ class LoopInterface(Interface):
 
         if not self.config['mock']:
             self.log.info('Requesting next shot from experiment interface...')
-            self.log.debug(f'Setting optimization parameter values: {globals_dict}')
             set_globals(globals_dict)
             set_globals_mloop(self.log, mloop_iteration=self.num_in_costs)
             self.log.debug('Calling engage().')
@@ -131,6 +132,7 @@ class LoopInterface(Interface):
 
         else:
             self.log.info('Not waiting for lyse queue...')
+            time.sleep(self.interface_wait) # add a delay here to give runmanager time to comple before changing the globals!
 
         return cost_dict
 

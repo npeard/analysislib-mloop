@@ -65,7 +65,6 @@ class LoopController(GaussianProcessController):
         self.out_params.append(params)
         self.out_extras.append(kwargs)
         self.out_type.append(param_type)
-        self.log.info('params ' + str(params))
 
         if not base_mode:
             # IBS: composing base Controller class with MachineLearnerController manually
