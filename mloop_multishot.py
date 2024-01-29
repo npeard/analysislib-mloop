@@ -198,28 +198,25 @@ def run_singleshot_multishot(config_file):
         # get next element in the params queue without removing it
         requested_globals = lyse.routine_storage.params.queue[0]
 
-        cost_dict = cost_analysis(
-            cost_key=config['cost_key'] if not config['mock'] else [],
-            maximize=config['maximize'],
-            x=requested_globals.values()[0] if config['mock'] else None,
-        )
+        if verify_globals(config, requested_globals):
+            lyse.routine_storage.params.get() # Since globals are good we remove these parameters from the queue
 
-        if not cost_dict['bad'] or not config['ignore_bad']:
-            if check_runmanager(config):
-                if verify_globals(config, requested_globals):
+            cost_dict = cost_analysis(
+                cost_key=config['cost_key'] if not config['mock'] else [],
+                maximize=config['maximize'],
+                x=requested_globals.values()[0] if config['mock'] else None,
+            )   
+
+            if not cost_dict['bad'] or not config['ignore_bad']:   
                     logger.debug('Putting cost in the cost queue and removing current params from the params queue.')
                     lyse.routine_storage.queue.put(cost_dict)
-                    lyse.routine_storage.params.get()
-                else:
-                    message = 'NOT putting cost in queue because verify_globals failed.'
-                    logger.debug(message)
             else:
-                message = 'NOT putting cost in queue because check_runmanager failed.'
+                message = (
+                    'NOT putting cost in queue because cost was bad and ignore_bad is True.'
+                )
                 logger.debug(message)
         else:
-            message = (
-                'NOT putting cost in queue because cost was bad and ignore_bad is True.'
-            )
+            message = 'NOT putting cost in queue because verify_globals failed.'
             logger.debug(message)
 
     elif check_runmanager(config):
