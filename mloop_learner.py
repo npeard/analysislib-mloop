@@ -50,7 +50,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
                 self.log.error(msg)
                 raise ValueError(msg)
             else:
-                 msg = 'first_params are:' + repr(self.first_params)
+                msg = 'first_params are:' + repr(self.first_params)
                 self.log.debug(msg)
 
 
@@ -76,15 +76,14 @@ class SimpleRandomLearner(Learner, threading.Thread):
         '''
         Puts the next parameters on the queue which are randomly picked from a uniform distribution between the minimum and maximum boundaries when a cost is added to the cost queue.
         '''
-        self.log.debug('Starting Simple Random Learner')
         if self.first_params is None:
+            self.log.debug('Starting Simple Random Learner with random starting parameters')
             next_params = mlu.rng.uniform(self.min_boundary, self.max_boundary)
         else:
+            self.log.debug('Starting Simple Random Learner with provided starting parameters')
             next_params = self.first_params
 
         while not self.end_event.is_set():
-
-            next_params =  mlu.rng.uniform(self.min_boundary, self.max_boundary)
 
             # Wait until the queue is empty and send a new element promptly.
             while not self.params_out_queue.empty():
@@ -99,6 +98,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
             except queue.Empty:
                 pass
 
+            next_params =  mlu.rng.uniform(self.min_boundary, self.max_boundary)
 
         self._shut_down()
         self.log.debug('Ended Simple Random Learner')
