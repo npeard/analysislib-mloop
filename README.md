@@ -100,6 +100,7 @@ start = -2
     * `global_name` defines the global it maps to in runmanager.
     * `enable` allows parameters to be enabled or disabled on a case-by-case basis.  This may be omitted and defaults to `true`.
     * `min`, `max`, `start` correspond to `min_boundary`, `max_boundary`, and `first_params` lists to meet [M-LOOP specifications](https://m-loop.readthedocs.io/en/latest/tutorials.html#parameter-settings).
+      * **Double check** the bounds specified here against your `connectiontable` as an out of bound error in runmanager will break the fairly fragile syncronization in this code.
 
 You may also specify a more complicated mapping between the parameters controller by MLOOP and globals in runmanager.
 
