@@ -163,6 +163,7 @@ class LoopController(GaussianProcessController):
         #Run the training runs using the standard optimization routine.
         self.log.debug('Starting training optimization.')
         self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
+
         next_params = self._first_params()
         self._put_params_and_out_dict(next_params,param_type=self.learner.OUT_TYPE)
         self.save_archive()
@@ -216,3 +217,34 @@ class LoopController(GaussianProcessController):
                 self.log.debug(f'Requesting new parameters (machine learner)')
                 self.new_params_event.set()
                 ml_count = 0
+
+
+    def optimize(self):
+        '''
+        Optimize the experiment. This code learner and interface processes/threads are launched and appropriately ended.
+        Starts both threads and catches kill signals and shuts down appropriately.
+        '''
+        log = logging.getLogger(__name__)
+
+        try:
+            log.info('Optimization started.')
+            self._start_up()
+            self._optimization_routine()
+            log.info('Controller finished. Closing down M-LOOP. Please wait a moment...')
+        except ControllerInterrupt:
+            self.log.warning('Controller ended by interruption.')
+        except (KeyboardInterrupt,SystemExit):
+            log.warning('!!! Do not give the interrupt signal again !!! \n M-LOOP stopped with keyboard interrupt or system exit. Please wait at least 1 minute for the threads to safely shut down. \n ')
+            log.warning('Closing down controller.')
+        except Exception as err:
+            msg = f"Unexpected controller {err=}, {type(err)=} ; Starting shut down."
+            self.log.warning(msg)
+            self.halt_reasons.append(msg)
+            self._shut_down()
+            self.log.warning('Safely shut down. Below are results found before exception.')
+            self.print_results()
+            return
+
+        self._shut_down()
+        self.print_results()
+        self.log.info('M-LOOP Done.')
