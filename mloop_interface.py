@@ -8,9 +8,7 @@ import mloop.utilities as mlu
 import logging
 import queue
 
-logger = logging.getLogger('analysislib_mloop')
-
-def set_globals_mloop(mloop_session=None, mloop_iteration=None):
+def set_globals_mloop(logger, mloop_session=None, mloop_iteration=None):
     """Set globals named 'mloop_session' and 'mloop_iteration'
     based on the current . Defaults are None, which will ideally
     remain that way unless there is an active optimisation underway.
@@ -119,7 +117,7 @@ class LoopInterface(Interface):
             self.log.info('Requesting next shot from experiment interface...')
             self.log.debug(f'Setting optimization parameter values: {globals_dict}')
             set_globals(globals_dict)
-            set_globals_mloop(mloop_iteration=self.num_in_costs)
+            set_globals_mloop(self.log, mloop_iteration=self.num_in_costs)
             self.log.debug('Calling engage().')
             engage()
 
@@ -147,6 +145,8 @@ class LoopInterface(Interface):
 """
 
 def main(config):
+    logger = logging.getLogger('analysislib_mloop')
+
     # Create M-LOOP optmiser interface with desired parameters
     interface = LoopInterface(config)
 
@@ -154,14 +154,14 @@ def main(config):
     controller = mloop_controller.LoopController(interface, **interface.config)
 
     # Define the M-LOOP session ID and initialise the mloop_iteration
-    set_globals_mloop(controller.start_datetime.strftime('%Y%m%dT%H%M%S'), 0)
+    set_globals_mloop(logger, controller.start_datetime.strftime('%Y%m%dT%H%M%S'), 0)
 
     # Run the optimiser using the constructed interface
     controller.optimize()
 
     # Reset the M-LOOP session and index to None
     logger.info('Optimisation ended.')
-    set_globals_mloop()
+    set_globals_mloop(logger)
 
     # Set the optimisation globals to their best results
     logger.info('Setting best parameters in runmanager.')
