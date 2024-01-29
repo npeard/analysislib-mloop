@@ -2,7 +2,6 @@ from mloop.controllers import GaussianProcessController
 from . import mloop_learner
 import mloop.utilities as mlu
 import logging
-import queue
 
 logger = logging.getLogger('analysislib_mloop')
 
@@ -24,7 +23,7 @@ class LoopController(GaussianProcessController):
         self.num_buffered_runs = interface.num_buffered_runs
 
         # This is the biggest change
-        self.last_out_params = queue.Queue()
+        self.last_out_params = mlu.queue.Queue()
         self.cost_obtained = False
 
     def _put_params_and_out_dict(self, params, param_type=None, **kwargs):
@@ -53,7 +52,9 @@ class LoopController(GaussianProcessController):
 
         # Do one last check to ensure parameter values are within the allowed
         # limits before sending those values to the interface.
+        self.log.info('enforcing boundaries')
         params = self._enforce_boundaries(params)
+        self.log.info('boundaries enforced')
 
         # Send the parameters to the interface and update various attributes.
         out_dict = {'params':params}
@@ -64,6 +65,7 @@ class LoopController(GaussianProcessController):
         self.out_params.append(params)
         self.out_extras.append(kwargs)
         self.out_type.append(param_type)
+        # self.log.info('params ' + str(params))
 
     def _get_cost_and_in_dict(self):
         '''
@@ -191,29 +193,26 @@ class LoopController(GaussianProcessController):
             self.new_params_event.set()
             self.log.debug('End training runs.')
 
-            ml_consec = 0
             ml_count = 0
 
         while self.check_end_conditions():
             run_num = self.num_in_costs + 1
-            if ml_consec==self.generation_num or (self.no_delay and self.ml_learner_params_queue.empty()):
+            if ml_count==self.generation_num or (self.no_delay and self.ml_learner_params_queue.empty()):
                 self.log.info('Run:' + str(run_num) + ' (trainer)')
                 next_params = self._next_params()
                 self._put_params_and_out_dict(next_params, param_type=self.learner.OUT_TYPE)
-                ml_consec = 0
             else:
                 self.log.info('Run:' + str(run_num) + ' (machine learner)')
                 next_params = self.ml_learner_params_queue.get()
                 self.log.debug(f'Got next params (machine learner): {next_params}')
                 self._put_params_and_out_dict(next_params, param_type=self.machine_learner.OUT_TYPE)
                 self.log.debug(f'Put next params (machine learner)')
-                ml_consec += 1
                 ml_count += 1
 
             self.save_archive()
             self._get_cost_and_in_dict()
 
             if ml_count==self.generation_num:
-                self.log.debug(f'Requeting new parameters (machine learner)')
+                self.log.debug(f'Requesting new parameters (machine learner)')
                 self.new_params_event.set()
                 ml_count = 0
