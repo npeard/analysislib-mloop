@@ -11,7 +11,7 @@ groups = ["CMOT", "MOL", "MTRAP"]
 
 [MLOOP]
 num_buffered_runs = 3 # this is how many shots to try to keep in the runmanager queue
-num_training_runs = 5
+num_training_runs = 20 # Make this large enough that some shots are good.
 max_num_runs_without_better_params = 80
 max_num_runs = 400
 trust_region = 0.05
@@ -54,7 +54,7 @@ start = 0.5
 global_name = "RepumpCMOT"  
 enable = true 
 min = 0.0
-max = 1.2
+max = 0.9
 start = 0.055
 
 ##     ##  #######  ##          ###     ######   ######  ########  ######

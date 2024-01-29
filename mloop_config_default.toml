@@ -11,7 +11,7 @@ groups = ["MOT"]
 
 [MLOOP]
 num_buffered_runs = 3 # this is how many shots to try to keep in the runmanager queue
-num_training_runs = 5
+num_training_runs = 5 # Make this large enough that some shots are good.
 max_num_runs_without_better_params = 10
 max_num_runs = 30
 trust_region = 0.05
