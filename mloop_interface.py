@@ -61,9 +61,10 @@ class LoopInterface(Interface):
                 )
                 self.log.debug("Got params_dict", params_dict)
             except mlu.empty_exception:
-                continue # DEBUG HERE.  THIS ENDS THE WHILE LOOP RATHER THAN CONTINUING!
-                # logic needs to be "continue" if we are out of submitted runs otherwise "pass"
-                # because we know there are runs to be had
+                pass 
+                # More logic is possible to decide if to pass on to the get_next_cost_dict
+                # part or not.  But since get_next_cost_dict will continue if empty anyway, 
+                # there is no real need.  
 
             # Try to run self.get_next_cost_dict(), passing any errors on to the
             # controller. Note that the interface and controller run in separate
@@ -95,9 +96,14 @@ class LoopInterface(Interface):
                     
         self.log.debug('Interface ended normally')
 
-    # Method called by M-LOOP upon each new iteration to determine the cost
-    # associated with a given point in the search space
+
+    # TODO change return pattern to have a true/false for success as well so that rather than 
+    # get cost is used to try to put things in the queue.
     def get_next_cost_dict(self, params_dict, get_cost=True):
+        """
+        Called by M-LOOP upon each new iteration to determine the cost
+        associated with a given point in the search space
+        """
         self.num_in_costs += 1
         # Store current parameters to later verify reported cost corresponds to these
         # or so mloop_multishot.py can fake a cost if mock = True
@@ -117,14 +123,16 @@ class LoopInterface(Interface):
             self.log.debug('Calling engage().')
             engage()
 
-        # Only proceed once per lyse call ONCE we have num_buffered_runs queued up.
+        # Only proceed once per lyse call ONCE we have num_buffered_runs queued up,
+        cost_dict = {}
         if get_cost:
             self.log.info('Waiting for next cost from lyse queue...')
+
             cost_dict = lyse.routine_storage.queue.get()
-            self.log.debug('Got cost_dict from lyse queue: {cost}'.format(cost=cost_dict))
+            self.log.debug(f'Got cost_dict from lyse queue: {cost_dict}')
+
         else:
             self.log.info('Not waiting for lyse queue...')
-            cost_dict = {}
 
         return cost_dict
 
