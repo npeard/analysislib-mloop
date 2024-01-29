@@ -37,16 +37,22 @@ class SimpleRandomLearner(Learner, threading.Thread):
             raise ValueError(msg)
         if first_params is None:
             self.first_params = None
+            self.log.debug("First parameters not provided.")
         else:
             self.first_params = np.array(first_params, dtype=float)
+
             if not self.check_num_params(self.first_params):
                 msg = 'first_params has the wrong number of parameters:' + repr(self.first_params)
                 self.log.error(msg)
                 raise ValueError(msg)
-            if not self.check_in_boundary(self.first_params):
+            elif not self.check_in_boundary(self.first_params):
                 msg = 'first_params is not in the boundary:' + repr(self.first_params)
                 self.log.error(msg)
                 raise ValueError(msg)
+            else:
+                 msg = 'first_params are:' + repr(self.first_params)
+                self.log.debug(msg)
+
 
         # Keep track of best parameters to implement trust region.
         self.best_cost = None
