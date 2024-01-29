@@ -121,6 +121,7 @@ class LoopInterface(Interface):
             set_globals_mloop(self.log, mloop_iteration=self.num_in_costs)
             self.log.debug('Calling engage().')
             engage()
+        
 
         # Only proceed once per lyse call ONCE we have num_buffered_runs queued up,
         cost_dict = {}
@@ -132,8 +133,7 @@ class LoopInterface(Interface):
 
         else:
             self.log.info('Not waiting for lyse queue...')
-            # TODO make a proper config option.
-            time.sleep(5) # add a delay here to give runmanager time to comple before changing the globals!
+            # time.sleep(5) # add a delay here to give runmanager time to comple before changing the globals!
 
         return cost_dict
 
