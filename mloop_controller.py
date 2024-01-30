@@ -53,7 +53,6 @@ class LoopController(GaussianProcessController):
         # limits before sending those values to the interface.
         self.log.info('enforcing boundaries')
         params = self._enforce_boundaries(params)
-        self.log.info('boundaries enforced')
 
         # Send the parameters to the interface and update various attributes.
         out_dict = {'params':params}
@@ -64,7 +63,6 @@ class LoopController(GaussianProcessController):
         self.out_params.append(params)
         self.out_extras.append(kwargs)
         self.out_type.append(param_type)
-        # self.log.info('params ' + str(params))
 
     def _get_cost_and_in_dict(self):
         '''
@@ -198,15 +196,13 @@ class LoopController(GaussianProcessController):
         while self.check_end_conditions():
             run_num = self.num_in_costs + 1
             if ml_count==self.generation_num or (self.no_delay and self.ml_learner_params_queue.empty()):
-                self.log.info(f'Run:' + str(run_num) + ' (trainer)')
+                self.log.info(f'Run (trainer): {run_num}')
                 next_params = self._next_params()
                 self._put_params_and_out_dict(next_params, param_type=self.learner.OUT_TYPE)
             else:
-                self.log.info('Run:' + str(run_num) + ' (machine learner)')
+                self.log.info(f'Run (machine learner): {run_num}')
                 next_params = self.ml_learner_params_queue.get()
-                self.log.debug(f'Got next params (machine learner): {next_params}')
                 self._put_params_and_out_dict(next_params, param_type=self.ml_learner.OUT_TYPE)
-                self.log.debug(f'Put next params (machine learner)')
                 ml_count += 1
 
             self.save_archive()

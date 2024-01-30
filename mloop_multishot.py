@@ -14,6 +14,11 @@ import os
 from . import mloop_config
 from . import mloop_interface
 
+# Ignore annoying Pandas warning
+import warnings
+import pandas as pd
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+
 try:
     from labscript_utils import check_version
 except ImportError:
@@ -24,6 +29,8 @@ logger = logging.getLogger('analysislib_mloop')
 check_version('lyse', '2.5.0', '4.0')
 check_version('zprocess', '2.13.1', '4.0')
 check_version('labscript_utils', '2.12.5', '4.0')
+
+
 
 # MAIN CODE
 
@@ -184,38 +191,43 @@ def run_singleshot_multishot(config_file):
     config = mloop_config.get(config_file)
     configure_logging(config)
 
-    if not hasattr(lyse.routine_storage, 'queue'):
+    if not hasattr(lyse.routine_storage, 'cost_queue'):
         logger.info('First execution of lyse routine...')
 
         lyse.routine_storage.cost_queue = queue.Queue()
         lyse.routine_storage.params_queue = queue.Queue()
+
     if (
         hasattr(lyse.routine_storage, 'optimisation')
         and lyse.routine_storage.optimisation.is_alive()
     ):
         # get next element in the params queue without removing it
-        requested_globals = lyse.routine_storage.params_queue.queue[0]
-
-        if verify_globals(config, requested_globals):
-            lyse.routine_storage.params_queue.get() # Since globals are good we remove these parameters from the queue
-
-            cost_dict = cost_analysis(
-                cost_key=config['cost_key'] if not config['mock'] else [],
-                maximize=config['maximize'],
-                x=requested_globals.values()[0] if config['mock'] else None,
-            )   
-
-            if not cost_dict['bad'] or not config['ignore_bad']:   
-                    logger.debug('Putting cost in the cost queue and removing current params from the params queue.')
-                    lyse.routine_storage.cost_queue.put(cost_dict)
-            else:
-                message = (
-                    'NOT putting cost in queue because cost was bad and ignore_bad is True.'
-                )
-                logger.debug(message)
+        try:
+            requested_globals = lyse.routine_storage.params_queue.queue[0]
+        except:
+            logger.info("No parameters found in routine_storage.params_queue to submit")
         else:
-            message = 'NOT putting cost in queue because verify_globals failed.'
-            logger.debug(message)
+
+            if verify_globals(config, requested_globals):
+                lyse.routine_storage.params_queue.get() # Since globals are good we remove these parameters from the queue
+
+                cost_dict = cost_analysis(
+                    cost_key=config['cost_key'] if not config['mock'] else [],
+                    maximize=config['maximize'],
+                    x=requested_globals.values()[0] if config['mock'] else None,
+                )   
+
+                if not cost_dict['bad'] or not config['ignore_bad']:   
+                        logger.debug('Putting cost in the cost queue and removing current params from the params queue.')
+                        lyse.routine_storage.cost_queue.put(cost_dict)
+                else:
+                    message = (
+                        'NOT putting cost in queue because cost was bad and ignore_bad is True.'
+                    )
+                    logger.debug(message)
+            else:
+                message = 'NOT putting cost in queue because verify_globals failed.'
+                logger.debug(message)
 
     elif check_runmanager(config):
         logger.info('(Re)starting optimisation process...')
