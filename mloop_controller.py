@@ -1,4 +1,4 @@
-from mloop.controllers import GaussianProcessController
+from mloop.controllers import GaussianProcessController, ControllerInterrupt
 from . import mloop_learner
 import mloop.utilities as mlu
 import logging
@@ -161,7 +161,7 @@ class LoopController(GaussianProcessController):
         '''
         #Run the training runs using the standard optimization routine.
         self.log.debug('Starting training optimization.')
-        self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
+        self.log.info(f'Run (training): {self.num_in_costs +1} of {self.num_training_runs}')
 
         next_params = self._first_params()
         self._put_params_and_out_dict(next_params,param_type=self.learner.OUT_TYPE)
@@ -169,7 +169,7 @@ class LoopController(GaussianProcessController):
         self._get_cost_and_in_dict()
 
         while (self.num_in_costs < self.num_training_runs) and self.check_end_conditions():
-            self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
+            self.log.info(f'Run (training): {self.num_in_costs +1} of {self.num_training_runs}')
             next_params = self._next_params()
             self._put_params_and_out_dict(next_params, param_type=self.learner.OUT_TYPE)
             self.save_archive()
@@ -177,7 +177,7 @@ class LoopController(GaussianProcessController):
 
         if self.check_end_conditions():
             #Start last training run
-            self.log.info('Run:' + str(self.num_in_costs +1) + ' (training)')
+            self.log.info(f'Run (training): {self.num_in_costs +1} of {self.num_training_runs}')
             next_params = self._next_params()
             self._put_params_and_out_dict(next_params, param_type=self.learner.OUT_TYPE)
 
@@ -198,14 +198,14 @@ class LoopController(GaussianProcessController):
         while self.check_end_conditions():
             run_num = self.num_in_costs + 1
             if ml_count==self.generation_num or (self.no_delay and self.ml_learner_params_queue.empty()):
-                self.log.info('Run:' + str(run_num) + ' (trainer)')
+                self.log.info(f'Run:' + str(run_num) + ' (trainer)')
                 next_params = self._next_params()
                 self._put_params_and_out_dict(next_params, param_type=self.learner.OUT_TYPE)
             else:
                 self.log.info('Run:' + str(run_num) + ' (machine learner)')
                 next_params = self.ml_learner_params_queue.get()
                 self.log.debug(f'Got next params (machine learner): {next_params}')
-                self._put_params_and_out_dict(next_params, param_type=self.machine_learner.OUT_TYPE)
+                self._put_params_and_out_dict(next_params, param_type=self.ml_learner.OUT_TYPE)
                 self.log.debug(f'Put next params (machine learner)')
                 ml_count += 1
 
