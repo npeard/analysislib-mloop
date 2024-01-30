@@ -92,13 +92,32 @@ class SimpleRandomLearner(Learner, threading.Thread):
             self.params_out_queue.put(next_params)
 
             # Clear the costs in queue
+            # TODO: update this slightly so we can have a "best values" and therefore
+            # implement a trust region.
             try:
                 while True:
-                    self.costs_in_queue.get_nowait()
+                    message = self.costs_in_queue.get_nowait()
+
+                    params, cost, uncer, bad = self._parse_cost_message(message)
+                    self._update_run_data_attributes(params, cost, uncer, bad)
+
+                    # Update best parameters if necessary.
+                    if self.best_cost is None or cost < self.best_cost:
+                        self.best_cost = cost
+                        self.best_params = self.all_params[-1]
+
             except queue.Empty:
                 pass
 
-            next_params =  mlu.rng.uniform(self.min_boundary, self.max_boundary)
+            if self.has_trust_region and self.best_cost != float('inf'):
+                temp_min = np.maximum(self.min_boundary, self.best_params - self.trust_region)
+                temp_max = np.minimum(self.max_boundary, self.best_params + self.trust_region)
+                next_params = mlu.rng.uniform(temp_min, temp_max)
+            else:
+                next_params = mlu.rng.uniform(
+                    self.min_boundary,
+                    self.max_boundary,
+                )
 
         self._shut_down()
         self.log.debug('Ended Simple Random Learner')
