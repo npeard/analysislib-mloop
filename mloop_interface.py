@@ -157,13 +157,14 @@ def main(config):
     # Reset the M-LOOP session and index to None
     interface.set_globals_mloop()
 
-    # Set the optimisation globals to their best results
+    # Set the optimisation globals to their best results and submitting shot
     globals_dict = mloop_config.prepare_globals(
             interface.config['runmanager_globals'],
             dict(zip(interface.config['mloop_params'].keys(), controller.best_params))
     )
     set_globals(globals_dict)
-
+    engage()
+    
     # Return the results in a dictionary
     opt_results = {}
     opt_results['best_params'] = controller.best_params

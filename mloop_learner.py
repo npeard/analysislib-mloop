@@ -2,12 +2,9 @@ from mloop.learners import Learner
 import mloop.utilities as mlu
 
 import threading
-import logging
 import queue
 import time
 import numpy as np
-
-logger = logging.getLogger('analysislib_mloop')
 
 class SimpleRandomLearner(Learner, threading.Thread):
     '''
