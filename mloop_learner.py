@@ -55,12 +55,9 @@ class SimpleRandomLearner(Learner, threading.Thread):
 
 
         # Keep track of best parameters to implement trust region.
-        self.best_cost = None
-        self.best_parameters = None
+        self.best_cost = float('inf')
+        self.best_params = None
 
-        if trust_region is not None:
-            trust_region = None
-            self.log.info("Trust region is ignored in Simple Random Learner")
         self._set_trust_region(trust_region)
 
         new_values_dict = {
@@ -97,19 +94,23 @@ class SimpleRandomLearner(Learner, threading.Thread):
             try:
                 while True:
                     message = self.costs_in_queue.get_nowait()
+                    if not all(elem is None for elem in message):
+                        self.log.debug(f'Learner got message: {message}')
 
-                    params, cost, uncer, bad = self._parse_cost_message(message)
-                    self._update_run_data_attributes(params, cost, uncer, bad)
+                        params, cost, uncer, bad = self._parse_cost_message(message)
+                        self._update_run_data_attributes(params, cost, uncer, bad)
 
-                    # Update best parameters if necessary.
-                    if self.best_cost is None or cost < self.best_cost:
-                        self.best_cost = cost
-                        self.best_params = self.all_params[-1]
+                        # Update best parameters if necessary.
+                        if self.best_cost is None or cost < self.best_cost:
+                            self.best_cost = cost
+                            self.best_params = self.all_params[-1]
+                    else:
+                        self.log.info(f'Learner got INVALID message: {message}')
 
             except queue.Empty:
                 pass
 
-            if self.has_trust_region and self.best_cost != float('inf'):
+            if self.has_trust_region and (self.best_cost != float('inf')) and (self.best_params is not None):
                 temp_min = np.maximum(self.min_boundary, self.best_params - self.trust_region)
                 temp_max = np.minimum(self.max_boundary, self.best_params + self.trust_region)
                 next_params = mlu.rng.uniform(temp_min, temp_max)

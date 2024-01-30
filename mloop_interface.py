@@ -39,10 +39,7 @@ class LoopInterface(Interface):
                 )
                 self.log.debug("Got params_dict", params_dict)
             except mlu.empty_exception:
-                pass 
-                # More logic is possible to decide if to pass on to the get_next_cost_dict
-                # part or not.  But since get_next_cost_dict will continue if empty anyway, 
-                # there is no real need.  
+                params_dict = None
 
             # Try to run self.get_next_cost_dict(), passing any errors on to the
             # controller. Note that the interface and controller run in separate
@@ -53,10 +50,11 @@ class LoopInterface(Interface):
 
             # only get the cost after the first self.num_buffered_runs
             get_cost = (self.num_in_costs >= self.num_buffered_runs)
+            send_parms = (params_dict is not None)
             try:
                 self.log.debug("Trying for cost_dict")
-                cost_dict = self.get_next_cost_dict(params_dict, get_cost=get_cost)
-                self.log.debug("Got cost_dict", params_dict)
+                cost_dict = self.get_next_cost_dict(params_dict, get_cost=get_cost, send_parms=send_parms)
+                self.log.debug(f"Got cost_dict {cost_dict}")
             except Exception as err:
                 # Send the error to the controller and set the end event to shut
                 # down the interface. Setting the end event here and now
@@ -69,7 +67,8 @@ class LoopInterface(Interface):
                 if get_cost:
                     self.costs_in_queue.put(cost_dict)
                 else:
-                    self.log.debug('Shot submitted but cost not recorded.')
+                    if not send_parms:
+                        self.log.debug('Shot submitted but cost not recorded.')
 
 
                     
@@ -78,29 +77,30 @@ class LoopInterface(Interface):
 
     # TODO change return pattern to have a true/false for success as well so that rather than 
     # get cost is used to try to put things in the queue.
-    def get_next_cost_dict(self, params_dict, get_cost=True):
+    def get_next_cost_dict(self, params_dict, get_cost=True, send_parms=True):
         """
         Called by M-LOOP upon each new iteration to determine the cost
         associated with a given point in the search space
         """
-        self.num_in_costs += 1
-        # Store current parameters to later verify reported cost corresponds to these
-        # or so mloop_multishot.py can fake a cost if mock = True
-        globals_dict = mloop_config.prepare_globals(
-                self.config['runmanager_globals'],
-                dict(zip(self.config['mloop_params'].keys(), params_dict['params']))
-        )
 
-        self.log.debug(f'Storing requested parameters in lyse.routine_storage:  {globals_dict}')
-        lyse.routine_storage.params_queue.put(globals_dict) 
+        if send_parms:
+            self.num_in_costs += 1
+            # Store current parameters to later verify reported cost corresponds to these
+            # or so mloop_multishot.py can fake a cost if mock = True
+            globals_dict = mloop_config.prepare_globals(
+                    self.config['runmanager_globals'],
+                    dict(zip(self.config['mloop_params'].keys(), params_dict['params']))
+            )
 
-        if not self.config['mock']:
-            self.log.info('Requesting next shot from experiment interface...')
-            set_globals(globals_dict)
-            self.set_globals_mloop(mloop_iteration=self.num_in_costs)
-            self.log.debug('Calling engage().')
-            engage()
-        
+            self.log.debug(f'Storing requested parameters in lyse.routine_storage:  {globals_dict}')
+            lyse.routine_storage.params_queue.put(globals_dict) 
+
+            if not self.config['mock']:
+                self.log.info('Requesting next shot from experiment interface...')
+                set_globals(globals_dict)
+                self.set_globals_mloop(mloop_iteration=self.num_in_costs)
+                self.log.debug('Calling engage().')
+                engage()
 
         # Queue up num_buffered_runs shots and then proceed once per lyse call
         cost_dict = {}

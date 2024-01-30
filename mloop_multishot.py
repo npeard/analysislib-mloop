@@ -123,10 +123,6 @@ def verify_globals(config, requested_globals):
 
         if len(shot_values) != len(requested_values):
             logger.debug("Lengths of arrays are different")
-        else:
-            for i, (s, r) in enumerate(zip(shot_values, requested_values)):
-                if s != r:
-                    logger.debug(f"Values in index {i} are not equal: {s} != {r}")
             
         message = (
             'Please add an executed shot to lyse with: {requested_globals}'
