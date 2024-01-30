@@ -5,25 +5,6 @@ from runmanager.remote import set_globals, engage
 from mloop.interfaces import Interface
 from mloop.controllers import GaussianProcessController
 import mloop.utilities as mlu
-import logging
-import queue
-import time
-
-def set_globals_mloop(logger, mloop_session=None, mloop_iteration=None):
-    """Set globals named 'mloop_session' and 'mloop_iteration'
-    based on the current . Defaults are None, which will ideally
-    remain that way unless there is an active optimisation underway.
-    """
-    if mloop_iteration and mloop_session is None:
-        globals = {'mloop_iteration': mloop_iteration}
-    else:
-        globals = {'mloop_session': mloop_session, 'mloop_iteration': mloop_iteration}
-    try:
-        set_globals(globals)
-        logger.debug('mloop_iteration and/or mloop_session set.')
-    except ValueError:
-        logger.debug('Failed to set mloop_iteration and/or mloop_session.')
-
 
 class LoopInterface(Interface):
     def __init__(self, config_file):
@@ -39,8 +20,6 @@ class LoopInterface(Interface):
         super(LoopInterface, self).__init__(**self.config)
 
         self.num_in_costs = 0
-
-
 
     def run(self):
         '''
@@ -133,9 +112,23 @@ class LoopInterface(Interface):
 
         else:
             self.log.info('Not waiting for lyse queue...')
-            # time.sleep(5) # add a delay here to give runmanager time to comple before changing the globals!
 
         return cost_dict
+
+    def set_globals_mloop(self, mloop_session=None, mloop_iteration=None):
+        """Set globals named 'mloop_session' and 'mloop_iteration'
+        based on the current . Defaults are None, which will ideally
+        remain that way unless there is an active optimisation underway.
+        """
+        if mloop_iteration and mloop_session is None:
+            globals = {'mloop_iteration': mloop_iteration}
+        else:
+            globals = {'mloop_session': mloop_session, 'mloop_iteration': mloop_iteration}
+        try:
+            set_globals(globals)
+            self.log.debug('mloop_iteration and/or mloop_session set.')
+        except ValueError:
+            self.log.debug('Failed to set mloop_iteration and/or mloop_session.')
 
 """
 ##     ##    ###    #### ##    ##
@@ -148,7 +141,6 @@ class LoopInterface(Interface):
 """
 
 def main(config):
-    logger = logging.getLogger('analysislib_mloop')
 
     # Create M-LOOP optmiser interface with desired parameters
     interface = LoopInterface(config)
@@ -157,17 +149,15 @@ def main(config):
     controller = mloop_controller.LoopController(interface, **interface.config)
 
     # Define the M-LOOP session ID and initialise the mloop_iteration
-    set_globals_mloop(logger, controller.start_datetime.strftime('%Y%m%dT%H%M%S'), 0)
+    interface.set_globals_mloop(controller.start_datetime.strftime('%Y%m%dT%H%M%S'), 0)
 
     # Run the optimiser using the constructed interface
     controller.optimize()
 
     # Reset the M-LOOP session and index to None
-    logger.info('Optimisation ended.')
-    set_globals_mloop(logger)
+    interface.set_globals_mloop()
 
     # Set the optimisation globals to their best results
-    logger.info('Setting best parameters in runmanager.')
     globals_dict = mloop_config.prepare_globals(
             interface.config['runmanager_globals'],
             dict(zip(interface.config['mloop_params'].keys(), controller.best_params))
