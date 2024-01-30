@@ -102,16 +102,16 @@ class LoopInterface(Interface):
             engage()
         
 
-        # Only proceed once per lyse call ONCE we have num_buffered_runs queued up,
+        # Queue up num_buffered_runs shots and then proceed once per lyse call
         cost_dict = {}
         if get_cost:
             self.log.info('Waiting for next cost from lyse queue...')
 
-            cost_dict = lyse.routine_storage.queue.get()
+            cost_dict = lyse.routine_storage.cost_queue.get()
             self.log.debug(f'Got cost_dict from lyse queue: {cost_dict}')
 
         else:
-            self.log.info('Not waiting for lyse queue...')
+            self.log.debug('Not waiting for lyse queue...')
 
         return cost_dict
 
