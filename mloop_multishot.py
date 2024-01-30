@@ -145,14 +145,14 @@ def cost_analysis(cost_key=(None,), maximize=True, x=None):
     cost_dict = {'bad': False}
 
     # Retrieve current lyse DataFrame
-    logger.debug('Getting lyse dataframe.')
     df = lyse.data(n_sequences=1)
-
-    # Use the most recent shot
-    ix = -1
 
     # Retrieve cost from specified column
     if len(df) and cost_key in df:
+
+        # Use the most recent shot
+        ix = -1
+
         cost = (df[cost_key].astype(float).values)[ix]
         if np.isnan(cost) or np.isinf(cost):
             cost_dict['bad'] = True
@@ -187,19 +187,17 @@ def run_singleshot_multishot(config_file):
     if not hasattr(lyse.routine_storage, 'queue'):
         logger.info('First execution of lyse routine...')
 
-        logger.debug('Creating queues.')
-        lyse.routine_storage.queue = queue.Queue()
-
-        lyse.routine_storage.params = queue.Queue()
+        lyse.routine_storage.cost_queue = queue.Queue()
+        lyse.routine_storage.params_queue = queue.Queue()
     if (
         hasattr(lyse.routine_storage, 'optimisation')
         and lyse.routine_storage.optimisation.is_alive()
     ):
         # get next element in the params queue without removing it
-        requested_globals = lyse.routine_storage.params.queue[0]
+        requested_globals = lyse.routine_storage.params_queue.queue[0]
 
         if verify_globals(config, requested_globals):
-            lyse.routine_storage.params.get() # Since globals are good we remove these parameters from the queue
+            lyse.routine_storage.params_queue.get() # Since globals are good we remove these parameters from the queue
 
             cost_dict = cost_analysis(
                 cost_key=config['cost_key'] if not config['mock'] else [],
@@ -209,7 +207,7 @@ def run_singleshot_multishot(config_file):
 
             if not cost_dict['bad'] or not config['ignore_bad']:   
                     logger.debug('Putting cost in the cost queue and removing current params from the params queue.')
-                    lyse.routine_storage.queue.put(cost_dict)
+                    lyse.routine_storage.cost_queue.put(cost_dict)
             else:
                 message = (
                     'NOT putting cost in queue because cost was bad and ignore_bad is True.'

@@ -92,7 +92,7 @@ class LoopInterface(Interface):
         )
 
         self.log.debug(f'Storing requested parameters in lyse.routine_storage:  {globals_dict}')
-        lyse.routine_storage.params.put(globals_dict) 
+        lyse.routine_storage.params_queue.put(globals_dict) 
 
         if not self.config['mock']:
             self.log.info('Requesting next shot from experiment interface...')
