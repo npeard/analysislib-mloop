@@ -97,7 +97,7 @@ class LoopInterface(Interface):
         if not self.config['mock']:
             self.log.info('Requesting next shot from experiment interface...')
             set_globals(globals_dict)
-            set_globals_mloop(self.log, mloop_iteration=self.num_in_costs)
+            self.set_globals_mloop(mloop_iteration=self.num_in_costs)
             self.log.debug('Calling engage().')
             engage()
         
