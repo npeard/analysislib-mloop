@@ -19,10 +19,12 @@ class SimpleRandomLearner(Learner, threading.Thread):
         max_boundary (Optional [array]): If set to None overides default learner values and sets it to an array of value 1. Default None.
         first_params (Optional [array]): The first parameters to test. If None will just randomly sample the initial condition.
         trust_region (Optional [float or array]): The trust region defines the maximum distance the learner will travel from the current best set of parameters. If None, the learner will search everywhere. If a float, this number must be between 0 and 1 and defines maximum distance the learner will venture as a percentage of the boundaries. If it is an array, it must have the same size as the number of parameters and the numbers define the maximum absolute distance that can be moved along each direction.
+        trust_gaussian (Optionan [bool]): Draw from a gaussian distribution with width defined by trust_region.
     '''
 
     def __init__(self,
                  trust_region=None,
+                 trust_gaussian=False,
                  first_params=None,
                  **kwargs):
 
@@ -56,6 +58,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
         self.best_params = None
 
         self._set_trust_region(trust_region)
+        self.trust_gaussian = bool(trust_gaussian)
 
         new_values_dict = {
             'archive_type': 'random_learner',
@@ -108,9 +111,15 @@ class SimpleRandomLearner(Learner, threading.Thread):
                 pass
 
             if self.has_trust_region and (self.best_cost != float('inf')) and (self.best_params is not None):
-                temp_min = np.maximum(self.min_boundary, self.best_params - self.trust_region)
-                temp_max = np.minimum(self.max_boundary, self.best_params + self.trust_region)
-                next_params = mlu.rng.uniform(temp_min, temp_max)
+
+                if self.trust_gaussian:
+                    next_params = mlu.rng.normal(self.best_params, self.trust_region)
+                    next_params = np.maximum(self.min_boundary, next_params)
+                    next_params = np.minimum(self.max_boundary, next_params)
+                else:
+                    temp_min = np.maximum(self.min_boundary, self.best_params - self.trust_region)
+                    temp_max = np.minimum(self.max_boundary, self.best_params + self.trust_region)
+                    next_params = mlu.rng.uniform(temp_min, temp_max)
             else:
                 next_params = mlu.rng.uniform(
                     self.min_boundary,
