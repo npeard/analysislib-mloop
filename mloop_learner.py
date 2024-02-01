@@ -64,6 +64,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
 
         # Keep track of best parameters to implement trust region.
         self.best_cost = float('inf')
+        self.worst_cost = float('-inf')
         self.best_params = None
         self.sorted_params =  np.empty( (0,0) )
 
@@ -92,32 +93,47 @@ class SimpleRandomLearner(Learner, threading.Thread):
 
     def _next_params(self, new_data):
 
-        # If we got new data update the array of candidate params to explore near
-        if new_data:
-            self.sorted_params = self.all_params[np.logical_and(self.trust_range[0] <= self.all_costs, self.all_costs <= self.trust_range[1])]
+        if (self.best_cost != float('inf')) and (self.worst_cost != float('-inf')):
+            # If we got new data update the array of candidate params to explore near 
+            if new_data:
+                self.log.debug(f'Learner has trust range: {self.trust_range}')
 
-        if self.has_trust_region and (self.best_cost != float('inf')) and (self.best_params is not None):
+                # Note that this is minimization problem so self.best_cost < self.worst_cost
+                max_trust = self.worst_cost + (self.best_cost - self.worst_cost) * self.trust_range[0]
+                min_trust = self.worst_cost + (self.best_cost - self.worst_cost) * self.trust_range[1]
+                
+                self.sorted_params = self.all_params[np.logical_and(min_trust <= self.all_costs, self.all_costs <= max_trust)]
+                self.log.debug(f"Have identified {self.sorted_params.shape[0]} sorted_params for trust_region ({min_trust},{max_trust})")
 
-            if self.sorted_params.shape[0] == 0:
-                nearby_params = self.best_params
+
+            if self.has_trust_region and (self.best_params is not None):
+
+                if self.sorted_params.shape[0] == 0:
+                    self.log.debug("Using best_params for trust_region")
+                    nearby_params = self.best_params
+                else:
+                    self.log.debug("Using sorted_params for trust_region")
+                    item = mlu.rng.integers(self.sorted_params.shape[0])
+                    nearby_params = self.sorted_params[item,:]
+
+                if self.trust_gaussian:
+                    next_params = mlu.rng.normal(nearby_params, self.trust_region)
+                    next_params = np.maximum(self.min_boundary, next_params)
+                    next_params = np.minimum(self.max_boundary, next_params)
+                else:
+                    temp_min = np.maximum(self.min_boundary, nearby_params - self.trust_region)
+                    temp_max = np.minimum(self.max_boundary, nearby_params + self.trust_region)
+                    next_params = mlu.rng.uniform(temp_min, temp_max)
             else:
-                item = mlu.rng.integers(self.sorted_params.shape[0])
-                nearby_params = self.best_params[item,:]
-
-            if self.trust_gaussian:
-                next_params = mlu.rng.normal(nearby_params, self.trust_region)
-                next_params = np.maximum(self.min_boundary, next_params)
-                next_params = np.minimum(self.max_boundary, next_params)
-            else:
-                temp_min = np.maximum(self.min_boundary, nearby_params - self.trust_region)
-                temp_max = np.minimum(self.max_boundary, nearby_params + self.trust_region)
-                next_params = mlu.rng.uniform(temp_min, temp_max)
+                next_params = mlu.rng.uniform(
+                    self.min_boundary,
+                    self.max_boundary,
+                )
         else:
             next_params = mlu.rng.uniform(
                 self.min_boundary,
                 self.max_boundary,
-            )
-        
+            )        
         return next_params
 
     def run(self):
@@ -126,7 +142,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
         '''
         if self.first_params is None:
             self.log.debug('Starting Simple Random Learner with random starting parameters')
-            next_params = mlu.rng.uniform(self.min_boundary, self.max_boundary)
+            next_params =  self._next_params(False)
         else:
             self.log.debug('Starting Simple Random Learner with provided starting parameters')
             next_params = self.first_params
@@ -144,17 +160,23 @@ class SimpleRandomLearner(Learner, threading.Thread):
             try:
                 while True:
                     message = self.costs_in_queue.get_nowait()
-                    if not all(elem is None for elem in message):
+                    if not any(elem is None for elem in message):
                         self.log.debug(f'Learner got message: {message}')
                         new_data = True
 
                         params, cost, uncer, bad = self._parse_cost_message(message)
                         self._update_run_data_attributes(params, cost, uncer, bad)
 
-                        # Update best parameters if necessary.
+                        # Update best and worst parameters and cost if necessary.
                         if self.best_cost is None or cost < self.best_cost:
                             self.best_cost = cost
                             self.best_params = self.all_params[-1]
+
+                        if self.worst_cost is None or cost > self.worst_cost:
+                            self.worst_cost = cost
+
+                        self.log.debug(f'Learner has best and worst costs: {(self.best_cost, self.worst_cost)}')
+
                     else:
                         self.log.info(f'Learner got INVALID message: {message}')
 
