@@ -19,15 +19,16 @@ class SimpleRandomLearner(Learner, threading.Thread):
         max_boundary (Optional [array]): If set to None overides default learner values and sets it to an array of value 1. Default None.
         first_params (Optional [array]): The first parameters to test. If None will just randomly sample the initial condition.
         trust_region (Optional [float or array]): The trust region defines the maximum distance the learner will travel from the 
-            current best set of parameters. If None, the learner will search everywhere. If a float, this number must be between 
+            parameters defined by trust_range. If None, the learner will search everywhere. If a float, this number must be between 
             0 and 1 and defines maximum distance the learner will venture as a percentage of the boundaries. 
             If it is an array, it must have the same size as the number of parameters and the numbers define 
             the maximum absolute distance that can be moved along each direction.
-        trust_gaussian (Optional [bool]): Draw from a gaussian distribution with width defined by trust_region.
         trust_range (Optional [array]): define the range over which the learner will apply the trust region.  
-            For example trust_range=[0.4, 0.9] will identify the parameters with costs that are between 0.4 and 0.9 of the max range from the 
+            For example trust_range=[0.4, 0.9] will identify the parameters with costs that are between 0.4 and 0.9 of the range from the 
             best and worst.  One of these will be randomly selected and we will then apply a standard trust region about this.  If the range is empty
-            we simply select the best.
+            we simply select the best.  Setting trust_range = [1,1] will select the best set of parameters.
+        trust_gaussian (Optional [bool]): Draw from a gaussian distribution with width defined by trust_region.
+
     '''
 
     def __init__(self,
