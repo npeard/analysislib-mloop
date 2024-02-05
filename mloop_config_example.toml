@@ -20,6 +20,7 @@ no_delay = true # false
 visualisations = false
 controller_type = "gaussian_process"
 console_log_level = 1
+console_log_string = "%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s"
 
  ######  ##     ##  #######  ########
 ##    ## ###   ### ##     ##    ##

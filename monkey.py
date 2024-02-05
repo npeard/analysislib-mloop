@@ -9,4 +9,4 @@ logger = logging.getLogger('analysislib_mloop')
 
 import mloop.learners as mll
 logger.debug("Monkey patching mll.RandomLearner")
-mll.RandomLearner = mloop_learner.SimpleRandomLearner
+mll.RandomLearner = mloop_learner.RandomLearner

@@ -6,7 +6,7 @@ import queue
 import time
 import numpy as np
 
-class SimpleRandomLearner(Learner, threading.Thread):
+class RandomLearner(Learner, threading.Thread):
     '''
     Random learner. Simply generates new parameters randomly with a uniform distribution over the boundaries. Learner is perhaps a misnomer 
     for this class.  Its primary job is to make sure that its queue is non-empty.
@@ -37,7 +37,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
                  first_params=None,
                  **kwargs):
 
-        super(SimpleRandomLearner,self).__init__(**kwargs)
+        super(RandomLearner, self).__init__(**kwargs)
 
         if ((np.all(np.isfinite(self.min_boundary))&np.all(np.isfinite(self.max_boundary)))==False):
             msg = 'Minimum and/or maximum boundaries are NaN or inf. Must both be finite for random learner. Min boundary:' + repr(self.min_boundary) +'. Max boundary:' + repr(self.max_boundary)
@@ -66,7 +66,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
         self.best_cost = float('inf')
         self.worst_cost = float('-inf')
         self.best_params = None
-        self.sorted_params =  np.empty( (0,0) )
+        self.trust_params =  np.empty( (0,0) )
 
         self._set_trust_region(trust_region)
         self.trust_gaussian = bool(trust_gaussian)
@@ -94,7 +94,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
     def _next_params(self, new_data):
 
         if (self.best_cost != float('inf')) and (self.worst_cost != float('-inf')):
-            # If we got new data update the array of candidate params to explore near 
+            # If we got new data update the array trust_params to explore near 
             if new_data:
                 self.log.debug(f'Learner has trust range: {self.trust_range}')
 
@@ -102,19 +102,19 @@ class SimpleRandomLearner(Learner, threading.Thread):
                 max_trust = self.worst_cost + (self.best_cost - self.worst_cost) * self.trust_range[0]
                 min_trust = self.worst_cost + (self.best_cost - self.worst_cost) * self.trust_range[1]
                 
-                self.sorted_params = self.all_params[np.logical_and(min_trust <= self.all_costs, self.all_costs <= max_trust)]
-                self.log.debug(f"Have identified {self.sorted_params.shape[0]} sorted_params for trust_region ({min_trust},{max_trust})")
+                self.trust_params = self.all_params[np.logical_and(min_trust <= self.all_costs, self.all_costs <= max_trust)]
+                self.log.debug(f"Have identified {self.trust_params.shape[0]} trust_params for trust_region ({min_trust},{max_trust})")
 
 
             if self.has_trust_region and (self.best_params is not None):
 
-                if self.sorted_params.shape[0] == 0:
+                if self.trust_params.shape[0] == 0:
                     self.log.debug("Using best_params for trust_region")
                     nearby_params = self.best_params
                 else:
-                    self.log.debug("Using sorted_params for trust_region")
-                    item = mlu.rng.integers(self.sorted_params.shape[0])
-                    nearby_params = self.sorted_params[item,:]
+                    self.log.debug("Using trust_params for trust_region")
+                    item = mlu.rng.integers(self.trust_params.shape[0])
+                    nearby_params = self.trust_params[item,:]
 
                 if self.trust_gaussian:
                     next_params = mlu.rng.normal(nearby_params, self.trust_region)
@@ -136,55 +136,69 @@ class SimpleRandomLearner(Learner, threading.Thread):
             )        
         return next_params
 
+    def _clear_cost_queue(self):
+        """
+        read all data in costs_in_queue and return if valid data was acquired.
+        """
+        new_data = False
+        try:
+            while True:
+                message = self.costs_in_queue.get_nowait()
+
+                # Check to make sure that the message is valid.
+                # TODO: improve _parse_cost_message to deal with invalid messages gracefully instead?
+                if not any(elem is None for elem in message):
+                    self.log.debug(f'RandomLearner got message: {message}')
+                    new_data = True
+
+                    params, cost, uncer, bad = self._parse_cost_message(message)
+                    self._update_run_data_attributes(params, cost, uncer, bad)
+
+                    # Update best and worst parameters and cost if necessary.
+                    if (self.best_cost is None) or (cost < self.best_cost):
+                        self.best_cost = cost
+                        self.best_params = self.all_params[-1]
+
+                    if (self.worst_cost is None) or (cost > self.worst_cost):
+                        self.worst_cost = cost
+
+                    self.log.debug(f'RandomLearner has best and worst costs: {(self.best_cost, self.worst_cost)}')
+
+                else:
+                    self.log.info(f'RandomLearner got INVALID message: {message}')
+
+        except queue.Empty:
+            pass
+        
+        return new_data
+
     def run(self):
         '''
-        Puts the next parameters on the queue which are randomly picked from a uniform distribution between the minimum and maximum boundaries when a cost is added to the cost queue.
+        Puts the next parameters on the queue which are randomly selected from a uniform distribution between 
+        the minimum and maximum boundaries when a cost is added to the cost queue.
         '''
+        
         if self.first_params is None:
-            self.log.debug('Starting Simple Random Learner with random starting parameters')
+            self.log.debug('Starting RandomLearner with random starting parameters')
             next_params =  self._next_params(False)
         else:
-            self.log.debug('Starting Simple Random Learner with provided starting parameters')
+            self.log.debug('Starting RandomLearner with provided starting parameters')
             next_params = self.first_params
 
         while not self.end_event.is_set():
-
             # Wait until the queue is empty and send a new element promptly.
             while not self.params_out_queue.empty():
                 time.sleep(self.learner_wait)
 
             self.params_out_queue.put(next_params)
 
-            # Readout any costs in the queue
-            new_data = False
-            try:
-                while True:
-                    message = self.costs_in_queue.get_nowait()
-                    if not any(elem is None for elem in message):
-                        self.log.debug(f'Learner got message: {message}')
-                        new_data = True
-
-                        params, cost, uncer, bad = self._parse_cost_message(message)
-                        self._update_run_data_attributes(params, cost, uncer, bad)
-
-                        # Update best and worst parameters and cost if necessary.
-                        if self.best_cost is None or cost < self.best_cost:
-                            self.best_cost = cost
-                            self.best_params = self.all_params[-1]
-
-                        if self.worst_cost is None or cost > self.worst_cost:
-                            self.worst_cost = cost
-
-                        self.log.debug(f'Learner has best and worst costs: {(self.best_cost, self.worst_cost)}')
-
-                    else:
-                        self.log.info(f'Learner got INVALID message: {message}')
-
-            except queue.Empty:
-                pass
-
+            # Fully read all costs in the queue
+            new_data = self._clear_cost_queue()
+            
             next_params = self._next_params(new_data)
-
+        else:
+            # make sure that all data is cleared from the queue at graceful termination of while loop
+            self._clear_cost_queue()
 
         self._shut_down()
         self.log.debug('Ended Simple Random Learner')
