@@ -9,7 +9,9 @@ logger = logging.getLogger('analysislib_mloop')
 
 def _config_logger(log_filename = mlu.default_log_filename,
                   file_log_level=logging.DEBUG,
+                  file_log_string='%(asctime)s %(name)-20s %(levelname)-8s %(message)s',
                   console_log_level=logging.INFO,
+                  console_log_string='%(asctime)s %(name)-20s %(levelname)-8s %(message)s',
                   start_datetime=None,
                   **kwargs):
     '''
@@ -43,11 +45,11 @@ def _config_logger(log_filename = mlu.default_log_filename,
                 os.makedirs(actual_log_foldername)
             fh = logging.FileHandler(filename_with_path)
             fh.setLevel(file_log_level)
-            fh.setFormatter(logging.Formatter('%(asctime)s %(name)-20s %(levelname)-8s %(message)s'))
+            fh.setFormatter(logging.Formatter(file_log_string))
             log.addHandler(fh)
         ch = logging.StreamHandler(stream = sys.stdout)
         ch.setLevel(console_log_level)
-        ch.setFormatter(logging.Formatter('%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s'))
+        ch.setFormatter(logging.Formatter(console_log_string))
         log.addHandler(ch)
         log.debug('M-LOOP Logger configured.')
     
