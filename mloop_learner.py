@@ -9,14 +9,14 @@ import numpy as np
 class SimpleRandomLearner(Learner, threading.Thread):
     '''
     Random learner. Simply generates new parameters randomly with a uniform distribution over the boundaries. Learner is perhaps a misnomer 
-    for this class.  Unlike the M-loop version, this complexly ignores the cost sent to it.  Its only job is to make sure that its queue is non-empty.
+    for this class.  Its primary job is to make sure that its queue is non-empty.
 
     Args:
         **kwargs (Optional dict): Other values to be passed to Learner.
 
     Keyword Args:
         min_boundary (Optional [array]): If set to None, overrides default learner values and sets it to a set of value 0. Default None.
-        max_boundary (Optional [array]): If set to None overides default learner values and sets it to an array of value 1. Default None.
+        max_boundary (Optional [array]): If set to None overrides default learner values and sets it to an array of value 1. Default None.
         first_params (Optional [array]): The first parameters to test. If None will just randomly sample the initial condition.
         trust_region (Optional [float or array]): The trust region defines the maximum distance the learner will travel from the 
             parameters defined by trust_range. If None, the learner will search everywhere. If a float, this number must be between 
@@ -28,7 +28,6 @@ class SimpleRandomLearner(Learner, threading.Thread):
             best and worst.  One of these will be randomly selected and we will then apply a standard trust region about this.  If the range is empty
             we simply select the best.  Setting trust_range = [1,1] will select the best set of parameters.
         trust_gaussian (Optional [bool]): Draw from a gaussian distribution with width defined by trust_region.
-
     '''
 
     def __init__(self,
@@ -63,7 +62,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
                 self.log.debug(msg)
 
 
-        # Keep track of best parameters to implement trust region.
+        # Keep track of best and worst parameters to implement trust region.
         self.best_cost = float('inf')
         self.worst_cost = float('-inf')
         self.best_params = None
@@ -73,7 +72,7 @@ class SimpleRandomLearner(Learner, threading.Thread):
         self.trust_gaussian = bool(trust_gaussian)
 
         if len(trust_range) != 2:
-            msg = "trust_range must have length 2"
+            msg = "trust_range must be a 1D vector-like object with length 2"
             self.log.error(msg)
             raise ValueError(msg)
         elif (not 0 <= trust_range[0] <= 1) or (not 0 <= trust_range[1] <= 1):
