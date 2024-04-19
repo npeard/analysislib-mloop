@@ -28,6 +28,7 @@ class RandomLearner(Learner, threading.Thread):
             best and worst.  One of these will be randomly selected and we will then apply a standard trust region about this.  If the range is empty
             we simply select the best.  Setting trust_range = [1,1] will select the best set of parameters.
         trust_gaussian (Optional [bool]): Draw from a gaussian distribution with width defined by trust_region.
+        explore_fraction (Optional [float]): fraction of sequences dedicated to exploring. Default 0.0 .
     '''
 
     def __init__(self,
@@ -35,6 +36,7 @@ class RandomLearner(Learner, threading.Thread):
                  trust_gaussian=False,
                  trust_range=[0.1, 0.25],
                  first_params=None,
+                 explore_fraction=0.0,
                  **kwargs):
 
         super(RandomLearner, self).__init__(**kwargs)
@@ -70,6 +72,7 @@ class RandomLearner(Learner, threading.Thread):
 
         self._set_trust_region(trust_region)
         self.trust_gaussian = bool(trust_gaussian)
+        self.explore_fraction = float(explore_fraction)
 
         if len(trust_range) != 2:
             msg = "trust_range must be a 1D vector-like object with length 2"
@@ -93,7 +96,14 @@ class RandomLearner(Learner, threading.Thread):
 
     def _next_params(self, new_data):
 
-        if (self.best_cost != float('inf')) and (self.worst_cost != float('-inf')):
+        explore = self.explore_fraction > mlu.rng.uniform(0.0, 1.0)
+
+        if explore or (self.best_cost == float('inf')) or (self.worst_cost != float('-inf')):
+            next_params = mlu.rng.uniform(
+                self.min_boundary,
+                self.max_boundary,
+            )   
+        else:
             # If we got new data update the array trust_params to explore near 
             if new_data:
                 self.log.debug(f'Learner has trust range: {self.trust_range}')
@@ -128,12 +138,7 @@ class RandomLearner(Learner, threading.Thread):
                 next_params = mlu.rng.uniform(
                     self.min_boundary,
                     self.max_boundary,
-                )
-        else:
-            next_params = mlu.rng.uniform(
-                self.min_boundary,
-                self.max_boundary,
-            )        
+                )     
         return next_params
 
     def _clear_cost_queue(self):
