@@ -22,10 +22,10 @@ visualisations = false
 controller_type = "gaussian_process"
 console_log_level = 10
 # filename prefix for controller archive, can include path
-controller_archive_filename = "X:\\userlib\\analysislib\\new_analysislib-mloop\\controller-archives\\"
+controller_archive_filename = "X:\\userlib\\analysislib\\analysislib-mloop\\controller-archives\\"
 controller_archive_file_type = "txt"
 # filename prefix for learner archive, can include path
-learner_archive_filename = "X:\\userlib\\analysislib\\new_analysislib-mloop\\learner-archives\\"
+learner_archive_filename = "X:\\userlib\\analysislib\\analysislib-mloop\\learner-archives\\"
 learner_archive_file_type = "txt"
 
 # Automatically creates the mapping to a runmanager global
