@@ -14,7 +14,7 @@ except ImportError:
 
 check_version('lyse', '2.5.0', '4.0')
 check_version('zprocess', '2.13.1', '4.0')
-check_version('labscript_utils', '2.12.5', '4.0')
+#check_version('labscript_utils', '2.12.5', '4.0')
 
 
 def configure_logging(config):
