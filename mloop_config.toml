@@ -11,10 +11,9 @@ groups = ["Imaging"]
 
 [MLOOP]
 training_type = "random"
-num_buffered_runs = 3 # this is how many shots to try to keep in the runmanager queue
-num_training_runs = 5 # Make this large enough that some shots are good.
+num_training_runs = 2
 max_num_runs_without_better_params = 10
-max_num_runs = 10
+max_num_runs = 5
 max_duration = 3600
 trust_region = 0.5
 cost_has_noise = true
@@ -30,7 +29,7 @@ learner_archive_filename = "X:\\userlib\\analysislib\\new_analysislib-mloop\\lea
 learner_archive_file_type = "txt"
 
 # Automatically creates the mapping to a runmanager global
-[MLOOP_PARAMS.MOT.x] # this is part of the MOT group 
+[MLOOP_PARAMS.Imaging.x] # this is part of the MOT group 
 global_name = "x"  # << Specify the runmanager global it maps to
 min = -5.0
 max = 5.0
